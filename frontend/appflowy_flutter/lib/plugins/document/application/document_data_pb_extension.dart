@@ -101,10 +101,16 @@ extension DocumentDataPBFromTo on DocumentDataPB {
       children.addAll(childrenIds.map((e) => buildNode(e)).whereNotNull());
     }
 
-    return block?.toNode(
+    final node = block?.toNode(
       children: children,
       meta: meta,
     );
+
+    for (final element in children) {
+      element.parent = node;
+    }
+
+    return node;
   }
 }
 
@@ -138,10 +144,11 @@ extension BlockToNode on BlockPB {
         final deltaString = meta.textMap[externalId];
         if (deltaString != null) {
           final delta = jsonDecode(deltaString);
-          map.putIfAbsent(
-            'delta',
-            () => delta,
-          );
+          map['delta'] = delta;
+          // map.putIfAbsent(
+          //   'delta',
+          //   () => delta,
+          // );
         }
       }
     }

@@ -53,20 +53,19 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: a571f2b
-      resolved-ref: a571f2bc9df764d90569951f40364c8c59787f30
+      ref: "6d12761"
+      resolved-ref: "6d127619294060999522be904a3e72a59dc270ca"
       url: "https://github.com/AppFlowy-IO/appflowy-editor.git"
     source: git
     version: "2.3.3"
   appflowy_editor_plugins:
     dependency: "direct main"
     description:
-      path: "."
-      ref: "8f238f2"
-      resolved-ref: "8f238f214de72e629fe2d90317518c5a0510cdc5"
-      url: "https://github.com/LucasXu0/appflowy_editor_plugins"
-    source: git
-    version: "0.0.1"
+      name: appflowy_editor_plugins
+      sha256: "9d91f65e564f85ffc98a407524371beeb1fd40aabd621b00ba8a722058636094"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.2"
   appflowy_popover:
     dependency: "direct main"
     description:
@@ -105,6 +104,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.11.0"
+  avatar_stack:
+    dependency: "direct main"
+    description:
+      name: avatar_stack
+      sha256: e4a1576f7478add964bbb8aa5e530db39288fbbf81c30c4fb4b81162dd68aa49
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   bloc:
     dependency: "direct main"
     description:
@@ -165,10 +172,10 @@ packages:
     dependency: "direct dev"
     description:
       name: build_runner
-      sha256: "581bacf68f89ec8792f5e5a0b2c4decd1c948e97ce659dc783688c8a88fbec21"
+      sha256: "3ac61a79bfb6f6cc11f693591063a7f19a7af628dc52f141743edac5c16e8c22"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.8"
+    version: "2.4.9"
   build_runner_core:
     dependency: transitive
     description:
@@ -459,7 +466,7 @@ packages:
     source: hosted
     version: "2.1.2"
   file:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: file
       sha256: "5fc22d7c25582e38ad9a8515372cd9a93834027aacf1801cf01164dac0ffa08c"
@@ -565,10 +572,11 @@ packages:
   flutter_cache_manager:
     dependency: "direct main"
     description:
-      name: flutter_cache_manager
-      sha256: "8207f27539deb83732fdda03e259349046a39a4c767269285f449ade355d54ba"
-      url: "https://pub.dev"
-    source: hosted
+      path: flutter_cache_manager
+      ref: HEAD
+      resolved-ref: fbab857b1b1d209240a146d32f496379b9f62276
+      url: "https://github.com/LucasXu0/flutter_cache_manager.git"
+    source: git
     version: "3.3.1"
   flutter_chat_types:
     dependency: transitive
@@ -1956,10 +1964,10 @@ packages:
     dependency: "direct main"
     description:
       name: url_launcher
-      sha256: c512655380d241a337521703af62d2c122bf7b77a46ff7dd750092aa9433499c
+      sha256: "6ce1e04375be4eed30548f10a315826fd933c1e493206eab82eed01f438c8d2e"
       url: "https://pub.dev"
     source: hosted
-    version: "6.2.4"
+    version: "6.2.6"
   url_launcher_android:
     dependency: transitive
     description:

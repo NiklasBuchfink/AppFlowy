@@ -1,7 +1,5 @@
-use anyhow::Error;
-use collab::core::collab::CollabDocState;
 use collab_entity::{CollabObject, CollabType};
-use flowy_error::{ErrorCode, FlowyError};
+use flowy_error::{internal_error, ErrorCode, FlowyError};
 use lib_infra::box_any::BoxAny;
 use lib_infra::conditional_send_sync_trait;
 use lib_infra::future::FutureResult;
@@ -16,7 +14,7 @@ use uuid::Uuid;
 
 use crate::entities::{
   AuthResponse, Authenticator, Role, UpdateUserProfileParams, UserCredentials, UserProfile,
-  UserTokenState, UserWorkspace, WorkspaceMember,
+  UserTokenState, UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,6 +142,9 @@ pub trait UserCloudService: Send + Sync + 'static {
     password: &str,
   ) -> FutureResult<UserProfile, FlowyError>;
 
+  fn sign_in_with_magic_link(&self, email: &str, redirect_to: &str)
+    -> FutureResult<(), FlowyError>;
+
   /// When the user opens the OAuth URL, it redirects to the corresponding provider's OAuth web page.
   /// After the user is authenticated, the browser will open a deep link to the AppFlowy app (iOS, macOS, etc.),
   /// which will call [Client::sign_in_with_url]generate_sign_in_url_with_email to sign in.
@@ -182,11 +183,32 @@ pub trait UserCloudService: Send + Sync + 'static {
   /// Deletes a workspace owned by the user.
   fn delete_workspace(&self, workspace_id: &str) -> FutureResult<(), FlowyError>;
 
+  // Deprecated, use invite instead
   fn add_workspace_member(
     &self,
     user_email: String,
     workspace_id: String,
-  ) -> FutureResult<(), Error> {
+  ) -> FutureResult<(), FlowyError> {
+    FutureResult::new(async { Ok(()) })
+  }
+
+  fn invite_workspace_member(
+    &self,
+    invitee_email: String,
+    workspace_id: String,
+    role: Role,
+  ) -> FutureResult<(), FlowyError> {
+    FutureResult::new(async { Ok(()) })
+  }
+
+  fn list_workspace_invitations(
+    &self,
+    filter: Option<WorkspaceInvitationStatus>,
+  ) -> FutureResult<Vec<WorkspaceInvitation>, FlowyError> {
+    FutureResult::new(async { Ok(vec![]) })
+  }
+
+  fn accept_workspace_invitations(&self, invite_id: String) -> FutureResult<(), FlowyError> {
     FutureResult::new(async { Ok(()) })
   }
 
@@ -194,7 +216,7 @@ pub trait UserCloudService: Send + Sync + 'static {
     &self,
     user_email: String,
     workspace_id: String,
-  ) -> FutureResult<(), Error> {
+  ) -> FutureResult<(), FlowyError> {
     FutureResult::new(async { Ok(()) })
   }
 
@@ -203,18 +225,23 @@ pub trait UserCloudService: Send + Sync + 'static {
     user_email: String,
     workspace_id: String,
     role: Role,
-  ) -> FutureResult<(), Error> {
+  ) -> FutureResult<(), FlowyError> {
     FutureResult::new(async { Ok(()) })
   }
 
   fn get_workspace_members(
     &self,
     workspace_id: String,
-  ) -> FutureResult<Vec<WorkspaceMember>, Error> {
+  ) -> FutureResult<Vec<WorkspaceMember>, FlowyError> {
     FutureResult::new(async { Ok(vec![]) })
   }
 
-  fn get_user_awareness_doc_state(&self, uid: i64) -> FutureResult<CollabDocState, Error>;
+  fn get_user_awareness_doc_state(
+    &self,
+    uid: i64,
+    workspace_id: &str,
+    object_id: &str,
+  ) -> FutureResult<Vec<u8>, FlowyError>;
 
   fn receive_realtime_event(&self, _json: Value) {}
 
@@ -222,20 +249,23 @@ pub trait UserCloudService: Send + Sync + 'static {
     None
   }
 
-  fn reset_workspace(&self, collab_object: CollabObject) -> FutureResult<(), Error>;
+  fn reset_workspace(&self, collab_object: CollabObject) -> FutureResult<(), FlowyError>;
 
   fn create_collab_object(
     &self,
     collab_object: &CollabObject,
     data: Vec<u8>,
-    override_if_exist: bool,
   ) -> FutureResult<(), FlowyError>;
 
   fn batch_create_collab_object(
     &self,
     workspace_id: &str,
     objects: Vec<UserCollabParams>,
-  ) -> FutureResult<(), Error>;
+  ) -> FutureResult<(), FlowyError>;
+
+  fn leave_workspace(&self, workspace_id: &str) -> FutureResult<(), FlowyError> {
+    FutureResult::new(async { Ok(()) })
+  }
 }
 
 pub type UserUpdateReceiver = tokio::sync::mpsc::Receiver<UserUpdate>;
@@ -248,13 +278,12 @@ pub struct UserUpdate {
   pub encryption_sign: String,
 }
 
-pub fn uuid_from_map(map: &HashMap<String, String>) -> Result<Uuid, Error> {
+pub fn uuid_from_map(map: &HashMap<String, String>) -> Result<Uuid, FlowyError> {
   let uuid = map
     .get("uuid")
     .ok_or_else(|| FlowyError::new(ErrorCode::MissingAuthField, "Missing uuid field"))?
     .as_str();
-  let uuid = Uuid::from_str(uuid)?;
-  Ok(uuid)
+  Uuid::from_str(uuid).map_err(internal_error)
 }
 
 #[derive(Debug)]

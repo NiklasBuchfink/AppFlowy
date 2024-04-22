@@ -1,6 +1,9 @@
 #![allow(unused_doc_comments)]
 
+use flowy_search::folder::indexer::FolderIndexManagerImpl;
+use flowy_search::services::manager::SearchManager;
 use flowy_storage::ObjectStorageService;
+use semver::Version;
 use std::sync::Arc;
 use std::time::Duration;
 use sysinfo::System;
@@ -11,6 +14,7 @@ use collab_integrate::collab_builder::{AppFlowyCollabBuilder, CollabPluginProvid
 use flowy_database2::DatabaseManager;
 use flowy_document::manager::DocumentManager;
 use flowy_folder::manager::FolderManager;
+
 use flowy_sqlite::kv::StorePreferences;
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user::services::entities::UserConfig;
@@ -19,6 +23,8 @@ use flowy_user::user_manager::UserManager;
 use lib_dispatch::prelude::*;
 use lib_dispatch::runtime::AFPluginRuntime;
 use lib_infra::priority_task::{TaskDispatcher, TaskRunner};
+use lib_infra::util::Platform;
+use lib_log::stream_log::StreamLogSender;
 use module::make_plugins;
 
 use crate::config::AppFlowyCoreConfig;
@@ -30,7 +36,7 @@ use crate::integrate::user::UserStatusCallbackImpl;
 
 pub mod config;
 mod deps_resolve;
-mod integrate;
+pub mod integrate;
 pub mod module;
 
 /// This name will be used as to identify the current [AppFlowyCore] instance.
@@ -49,10 +55,38 @@ pub struct AppFlowyCore {
   pub server_provider: Arc<ServerProvider>,
   pub task_dispatcher: Arc<RwLock<TaskDispatcher>>,
   pub store_preference: Arc<StorePreferences>,
+  pub search_manager: Arc<SearchManager>,
 }
 
 impl AppFlowyCore {
-  pub async fn new(config: AppFlowyCoreConfig, runtime: Arc<AFPluginRuntime>) -> Self {
+  pub async fn new(
+    config: AppFlowyCoreConfig,
+    runtime: Arc<AFPluginRuntime>,
+    stream_log_sender: Option<Arc<dyn StreamLogSender>>,
+  ) -> Self {
+    let platform = Platform::from(&config.platform);
+
+    #[allow(clippy::if_same_then_else)]
+    if cfg!(debug_assertions) {
+      /// The profiling can be used to tracing the performance of the application.
+      /// Check out the [Link](https://docs.appflowy.io/docs/documentation/software-contributions/architecture/backend/profiling#enable-profiling)
+      ///  for more information.
+      #[cfg(feature = "profiling")]
+      console_subscriber::init();
+
+      // Init the logger before anything else
+      #[cfg(not(feature = "profiling"))]
+      init_log(&config, &platform, stream_log_sender);
+    } else {
+      init_log(&config, &platform, stream_log_sender);
+    }
+
+    info!(
+      "💡{:?}, platform: {:?}",
+      System::long_os_version(),
+      platform
+    );
+
     Self::init(config, runtime).await
   }
 
@@ -62,25 +96,9 @@ impl AppFlowyCore {
 
   #[instrument(skip(config, runtime))]
   async fn init(config: AppFlowyCoreConfig, runtime: Arc<AFPluginRuntime>) -> Self {
-    #[allow(clippy::if_same_then_else)]
-    if cfg!(debug_assertions) {
-      /// The profiling can be used to tracing the performance of the application.
-      /// Check out the [Link](https://appflowy.gitbook.io/docs/essential-documentation/contribute-to-appflowy/architecture/backend/profiling)
-      ///  for more information.
-      #[cfg(feature = "profiling")]
-      console_subscriber::init();
-
-      // Init the logger before anything else
-      #[cfg(not(feature = "profiling"))]
-      init_log(&config);
-    } else {
-      init_log(&config);
-    }
-
     // Init the key value database
     let store_preference = Arc::new(StorePreferences::new(&config.storage_path).unwrap());
     info!("🔥{:?}", &config);
-    info!("💡System info: {:?}", System::long_os_version());
 
     let task_scheduler = TaskDispatcher::new(Duration::from_secs(2));
     let task_dispatcher = Arc::new(RwLock::new(task_scheduler));
@@ -93,6 +111,7 @@ impl AppFlowyCore {
       server_type,
       Arc::downgrade(&store_preference),
     ));
+    let app_version = Version::parse(&config.app_version).unwrap_or_else(|_| Version::new(0, 5, 4));
 
     event!(tracing::Level::DEBUG, "Init managers",);
     let (
@@ -102,6 +121,7 @@ impl AppFlowyCore {
       database_manager,
       document_manager,
       collab_builder,
+      search_manager,
     ) = async {
       /// The shared collab builder is used to build the [Collab] instance. The plugins will be loaded
       /// on demand based on the [CollabPluginConfig].
@@ -115,6 +135,7 @@ impl AppFlowyCore {
         &config.storage_path,
         &config.application_path,
         &config.device_id,
+        app_version,
       );
 
       let authenticate_user = Arc::new(AuthenticateUser::new(
@@ -141,17 +162,21 @@ impl AppFlowyCore {
         Arc::downgrade(&(server_provider.clone() as Arc<dyn ObjectStorageService>)),
       );
 
+      let folder_indexer = Arc::new(FolderIndexManagerImpl::new(Arc::downgrade(
+        &authenticate_user,
+      )));
       let folder_manager = FolderDepsResolver::resolve(
         Arc::downgrade(&authenticate_user),
         &document_manager,
         &database_manager,
         collab_builder.clone(),
         server_provider.clone(),
+        folder_indexer.clone(),
       )
       .await;
 
       let user_manager = UserDepsResolver::resolve(
-        authenticate_user,
+        authenticate_user.clone(),
         collab_builder.clone(),
         server_provider.clone(),
         store_preference.clone(),
@@ -160,6 +185,8 @@ impl AppFlowyCore {
       )
       .await;
 
+      let search_manager = SearchDepsResolver::resolve(folder_indexer).await;
+
       (
         user_manager,
         folder_manager,
@@ -167,6 +194,7 @@ impl AppFlowyCore {
         database_manager,
         document_manager,
         collab_builder,
+        search_manager,
       )
     }
     .await;
@@ -201,6 +229,7 @@ impl AppFlowyCore {
         Arc::downgrade(&database_manager),
         Arc::downgrade(&user_manager),
         Arc::downgrade(&document_manager),
+        Arc::downgrade(&search_manager),
       ),
     ));
 
@@ -214,6 +243,7 @@ impl AppFlowyCore {
       server_provider,
       task_dispatcher,
       store_preference,
+      search_manager,
     }
   }
 

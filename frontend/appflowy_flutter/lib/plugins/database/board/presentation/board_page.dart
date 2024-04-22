@@ -1,8 +1,5 @@
 import 'dart:collection';
 
-import 'package:flutter/material.dart' hide Card;
-import 'package:flutter/services.dart';
-
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/database/board/mobile_board_content.dart';
@@ -11,7 +8,9 @@ import 'package:appflowy/plugins/database/application/database_controller.dart';
 import 'package:appflowy/plugins/database/application/row/row_cache.dart';
 import 'package:appflowy/plugins/database/application/row/row_controller.dart';
 import 'package:appflowy/plugins/database/board/presentation/widgets/board_column_header.dart';
+import 'package:appflowy/plugins/database/grid/presentation/grid_page.dart';
 import 'package:appflowy/plugins/database/grid/presentation/widgets/header/field_type_extension.dart';
+import 'package:appflowy/plugins/database/tab_bar/desktop/setting_menu.dart';
 import 'package:appflowy/plugins/database/tab_bar/tab_bar_view.dart';
 import 'package:appflowy/plugins/database/widgets/cell/card_cell_style_maps/desktop_board_card_cell_style.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_detail.dart';
@@ -24,16 +23,19 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
 import 'package:flowy_infra_ui/widget/error_page.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
+import 'package:flutter/material.dart' hide Card;
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../widgets/card/card.dart';
 import '../../widgets/cell/card_cell_builder.dart';
 import '../application/board_bloc.dart';
-
 import 'toolbar/board_setting_bar.dart';
 import 'widgets/board_hidden_groups.dart';
 
 class BoardPageTabBarBuilderImpl extends DatabaseTabBarItemBuilder {
+  final _toggleExtension = ToggleExtensionNotifier();
+
   @override
   Widget content(
     BuildContext context,
@@ -49,14 +51,27 @@ class BoardPageTabBarBuilderImpl extends DatabaseTabBarItemBuilder {
       BoardSettingBar(
         key: _makeValueKey(controller),
         databaseController: controller,
+        toggleExtension: _toggleExtension,
       );
 
   @override
   Widget settingBarExtension(
     BuildContext context,
     DatabaseController controller,
-  ) =>
-      const SizedBox.shrink();
+  ) {
+    return DatabaseViewSettingExtension(
+      key: _makeValueKey(controller),
+      viewId: controller.viewId,
+      databaseController: controller,
+      toggleExtension: _toggleExtension,
+    );
+  }
+
+  @override
+  void dispose() {
+    _toggleExtension.dispose();
+    super.dispose();
+  }
 
   ValueKey _makeValueKey(DatabaseController controller) =>
       ValueKey(controller.viewId);
@@ -96,7 +111,7 @@ class BoardPage extends StatelessWidget {
             (err) => PlatformExtension.isMobile
                 ? FlowyMobileStateContainer.error(
                     emoji: '🛸',
-                    title: LocaleKeys.board_mobile_faildToLoad.tr(),
+                    title: LocaleKeys.board_mobile_failedToLoad.tr(),
                     errorMsg: err.toString(),
                   )
                 : FlowyErrorPage.message(

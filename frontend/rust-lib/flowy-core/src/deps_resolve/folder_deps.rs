@@ -14,18 +14,18 @@ use flowy_folder::manager::{FolderManager, FolderUser};
 use flowy_folder::share::ImportType;
 use flowy_folder::view_operation::{FolderOperationHandler, FolderOperationHandlers, View};
 use flowy_folder::ViewLayout;
+use flowy_folder_pub::folder_builder::NestedViewBuilder;
+use flowy_search::folder::indexer::FolderIndexManagerImpl;
+use flowy_user::services::authenticate_user::AuthenticateUser;
+use lib_dispatch::prelude::ToBytes;
+use lib_infra::async_trait::async_trait;
+use lib_infra::future::FutureResult;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
 
-use flowy_folder_pub::folder_builder::WorkspaceViewBuilder;
-use flowy_user::services::authenticate_user::AuthenticateUser;
-
 use crate::integrate::server::ServerProvider;
-use lib_dispatch::prelude::ToBytes;
-use lib_infra::async_trait::async_trait;
-use lib_infra::future::FutureResult;
 
 pub struct FolderDepsResolver();
 impl FolderDepsResolver {
@@ -35,6 +35,7 @@ impl FolderDepsResolver {
     database_manager: &Arc<DatabaseManager>,
     collab_builder: Arc<AppFlowyCollabBuilder>,
     server_provider: Arc<ServerProvider>,
+    folder_indexer: Arc<FolderIndexManagerImpl>,
   ) -> Arc<FolderManager> {
     let user: Arc<dyn FolderUser> = Arc::new(FolderUserImpl {
       authenticate_user: authenticate_user.clone(),
@@ -47,6 +48,7 @@ impl FolderDepsResolver {
         collab_builder,
         handlers,
         server_provider.clone(),
+        folder_indexer,
       )
       .await
       .unwrap(),
@@ -98,7 +100,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
   fn create_workspace_view(
     &self,
     uid: i64,
-    workspace_view_builder: Arc<RwLock<WorkspaceViewBuilder>>,
+    workspace_view_builder: Arc<RwLock<NestedViewBuilder>>,
   ) -> FutureResult<(), FlowyError> {
     let manager = self.0.clone();
     FutureResult::new(async move {
@@ -122,6 +124,15 @@ impl FolderOperationHandler for DocumentFolderOperation {
           view
         })
         .await;
+      Ok(())
+    })
+  }
+
+  fn open_view(&self, view_id: &str) -> FutureResult<(), FlowyError> {
+    let manager = self.0.clone();
+    let view_id = view_id.to_string();
+    FutureResult::new(async move {
+      manager.open_document(&view_id).await?;
       Ok(())
     })
   }
@@ -236,6 +247,15 @@ impl FolderOperationHandler for DocumentFolderOperation {
 
 struct DatabaseFolderOperation(Arc<DatabaseManager>);
 impl FolderOperationHandler for DatabaseFolderOperation {
+  fn open_view(&self, view_id: &str) -> FutureResult<(), FlowyError> {
+    let database_manager = self.0.clone();
+    let view_id = view_id.to_string();
+    FutureResult::new(async move {
+      database_manager.open_database_view(view_id).await?;
+      Ok(())
+    })
+  }
+
   fn close_view(&self, view_id: &str) -> FutureResult<(), FlowyError> {
     let database_manager = self.0.clone();
     let view_id = view_id.to_string();

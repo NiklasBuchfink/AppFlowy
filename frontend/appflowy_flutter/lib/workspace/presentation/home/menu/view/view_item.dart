@@ -17,6 +17,7 @@ import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.d
 import 'package:appflowy/workspace/presentation/home/menu/view/view_more_action_button.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/rename_view_popover.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_popover/appflowy_popover.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -26,7 +27,7 @@ import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-typedef ViewItemOnSelected = void Function(ViewPB);
+typedef ViewItemOnSelected = void Function(ViewPB, BuildContext);
 
 class ViewItem extends StatelessWidget {
   const ViewItem({
@@ -43,6 +44,7 @@ class ViewItem extends StatelessWidget {
     required this.isFeedback,
     this.height = 28.0,
     this.isHoverEnabled = true,
+    this.isPlaceholder = false,
   });
 
   final ViewPB view;
@@ -78,6 +80,10 @@ class ViewItem extends StatelessWidget {
 
   final bool isHoverEnabled;
 
+  // all the view movement depends on the [ViewItem] widget, so we have to add a
+  // placeholder widget to receive the drop event when moving view across sections.
+  final bool isPlaceholder;
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -105,6 +111,7 @@ class ViewItem extends StatelessWidget {
             isFeedback: isFeedback,
             height: height,
             isHoverEnabled: isHoverEnabled,
+            isPlaceholder: isPlaceholder,
           );
         },
       ),
@@ -132,6 +139,7 @@ class InnerViewItem extends StatelessWidget {
     required this.isFeedback,
     required this.height,
     this.isHoverEnabled = true,
+    this.isPlaceholder = false,
   });
 
   final ViewPB view;
@@ -154,6 +162,7 @@ class InnerViewItem extends StatelessWidget {
   final double height;
 
   final bool isHoverEnabled;
+  final bool isPlaceholder;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +179,7 @@ class InnerViewItem extends StatelessWidget {
       leftPadding: leftPadding,
       isFeedback: isFeedback,
       height: height,
+      isPlaceholder: isPlaceholder,
     );
 
     // if the view is expanded and has child views, render its child views
@@ -188,6 +198,7 @@ class InnerViewItem extends StatelessWidget {
             isDraggable: isDraggable,
             leftPadding: leftPadding,
             isFeedback: isFeedback,
+            isPlaceholder: isPlaceholder,
           );
         }).toList();
 
@@ -222,14 +233,17 @@ class InnerViewItem extends StatelessWidget {
     }
 
     // wrap the child with DraggableItem if isDraggable is true
-    if (isDraggable && !isReferencedDatabaseView(view, parentView)) {
+    if ((isDraggable || isPlaceholder) &&
+        !isReferencedDatabaseView(view, parentView)) {
       child = DraggableViewItem(
         isFirstChild: isFirstChild,
         view: view,
-        child: child,
         onDragging: (isDragging) {
           _isDragging = isDragging;
         },
+        onMove: isPlaceholder
+            ? (from, to) => _moveViewCrossSection(context, from, to)
+            : null,
         feedback: (context) {
           return ViewItem(
             view: view,
@@ -243,6 +257,7 @@ class InnerViewItem extends StatelessWidget {
             isFeedback: true,
           );
         },
+        child: child,
       );
     } else {
       // keep the same height of the DraggableItem
@@ -253,6 +268,37 @@ class InnerViewItem extends StatelessWidget {
     }
 
     return child;
+  }
+
+  void _moveViewCrossSection(
+    BuildContext context,
+    ViewPB from,
+    ViewPB to,
+  ) {
+    if (isReferencedDatabaseView(view, parentView)) {
+      return;
+    }
+    final fromSection = categoryType == FolderCategoryType.public
+        ? ViewSectionPB.Private
+        : ViewSectionPB.Public;
+    final toSection = categoryType == FolderCategoryType.public
+        ? ViewSectionPB.Public
+        : ViewSectionPB.Private;
+    context.read<ViewBloc>().add(
+          ViewEvent.move(
+            from,
+            to.parentViewId,
+            null,
+            fromSection,
+            toSection,
+          ),
+        );
+    context.read<ViewBloc>().add(
+          ViewEvent.updateViewVisibility(
+            from,
+            categoryType == FolderCategoryType.public,
+          ),
+        );
   }
 }
 
@@ -272,6 +318,7 @@ class SingleInnerViewItem extends StatefulWidget {
     required this.isFeedback,
     required this.height,
     this.isHoverEnabled = true,
+    this.isPlaceholder = false,
   });
 
   final ViewPB view;
@@ -291,6 +338,7 @@ class SingleInnerViewItem extends StatefulWidget {
   final double height;
 
   final bool isHoverEnabled;
+  final bool isPlaceholder;
 
   @override
   State<SingleInnerViewItem> createState() => _SingleInnerViewItemState();
@@ -304,6 +352,13 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
   Widget build(BuildContext context) {
     final isSelected =
         getIt<MenuSharedState>().latestOpenView?.id == widget.view.id;
+
+    if (widget.isPlaceholder) {
+      return const SizedBox(
+        height: 4,
+        width: double.infinity,
+      );
+    }
 
     if (widget.isFeedback || !widget.isHoverEnabled) {
       return _buildViewItem(
@@ -353,8 +408,9 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
 
     final child = GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onTap: () => widget.onSelected(widget.view),
-      onTertiaryTapDown: (_) => widget.onTertiarySelected?.call(widget.view),
+      onTap: () => widget.onSelected(widget.view, context),
+      onTertiaryTapDown: (_) =>
+          widget.onTertiarySelected?.call(widget.view, context),
       child: SizedBox(
         height: widget.height,
         child: Padding(
@@ -418,6 +474,7 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
             ViewBackendService.updateViewIcon(
               viewId: widget.view.id,
               viewIcon: result.emoji,
+              iconType: result.type.toProto(),
             );
             controller.close();
           },
@@ -475,6 +532,7 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
                       viewName,
                       pluginBuilder.layoutType!,
                       openAfterCreated: openAfterCreated,
+                      section: widget.categoryType.toViewSectionPB,
                     ),
                   );
                 }

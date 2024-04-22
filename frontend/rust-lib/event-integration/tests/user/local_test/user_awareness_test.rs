@@ -8,7 +8,7 @@ use flowy_user::event_map::UserEvent::*;
 #[tokio::test]
 async fn user_update_with_reminder() {
   let sdk = EventIntegrationTest::new().await;
-  let _ = sdk.sign_up_as_guest().await;
+  let _ = sdk.sign_up_as_anon().await;
   let mut meta = HashMap::new();
   meta.insert("object_id".to_string(), "".to_string());
 
@@ -22,6 +22,7 @@ async fn user_update_with_reminder() {
     object_id: "".to_string(),
     meta,
   };
+
   let _ = EventBuilder::new(sdk.clone())
     .event(CreateReminder)
     .payload(payload)

@@ -1,13 +1,13 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/plugins/document/application/doc_bloc.dart';
+import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/banner.dart';
 import 'package:appflowy/plugins/document/presentation/editor_notification.dart';
 import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/plugins/document/presentation/editor_style.dart';
 import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy/workspace/application/notifications/notification_action.dart';
-import 'package:appflowy/workspace/application/notifications/notification_action_bloc.dart';
+import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
+import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -33,35 +33,43 @@ class DocumentPage extends StatefulWidget {
   State<DocumentPage> createState() => _DocumentPageState();
 }
 
-class _DocumentPageState extends State<DocumentPage> {
+class _DocumentPageState extends State<DocumentPage>
+    with WidgetsBindingObserver {
   EditorState? editorState;
+  late final documentBloc = DocumentBloc(view: widget.view)
+    ..add(const DocumentEvent.initial());
 
   @override
   void initState() {
     super.initState();
-
-    // The appflowy editor use Intl as localization, set the default language as fallback.
-    Intl.defaultLocale = 'en_US';
-
+    WidgetsBinding.instance.addObserver(this);
     EditorNotification.addListener(_onEditorNotification);
   }
 
   @override
   void dispose() {
     EditorNotification.removeListener(_onEditorNotification);
-
+    WidgetsBinding.instance.removeObserver(this);
+    documentBloc.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      documentBloc.add(const DocumentEvent.clearAwarenessStates());
+    } else if (state == AppLifecycleState.resumed) {
+      documentBloc.add(const DocumentEvent.syncAwarenessStates());
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider.value(value: getIt<NotificationActionBloc>()),
-        BlocProvider(
-          create: (_) => DocumentBloc(view: widget.view)
-            ..add(const DocumentEvent.initial()),
-        ),
+        BlocProvider.value(value: getIt<ActionNavigationBloc>()),
+        BlocProvider.value(value: documentBloc),
       ],
       child: BlocBuilder<DocumentBloc, DocumentState>(
         builder: (context, state) {
@@ -85,9 +93,9 @@ class _DocumentPageState extends State<DocumentPage> {
             return const SizedBox.shrink();
           }
 
-          return BlocListener<NotificationActionBloc, NotificationActionState>(
-            listener: _onNotificationAction,
+          return BlocListener<ActionNavigationBloc, ActionNavigationState>(
             listenWhen: (_, curr) => curr.action != null,
+            listener: _onNotificationAction,
             child: _buildEditorPage(context, state),
           );
         },
@@ -161,7 +169,7 @@ class _DocumentPageState extends State<DocumentPage> {
 
   void _onNotificationAction(
     BuildContext context,
-    NotificationActionState state,
+    ActionNavigationState state,
   ) {
     if (state.action != null && state.action!.type == ActionType.jumpToBlock) {
       final path = state.action?.arguments?[ActionArgumentKeys.nodePath];
@@ -173,22 +181,5 @@ class _DocumentPageState extends State<DocumentPage> {
         );
       }
     }
-  }
-}
-
-class DocumentSyncIndicator extends StatelessWidget {
-  const DocumentSyncIndicator({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<DocumentBloc, DocumentState>(
-      builder: (context, state) {
-        if (state.isSyncing) {
-          return const SizedBox(height: 1, child: LinearProgressIndicator());
-        } else {
-          return const SizedBox(height: 1);
-        }
-      },
-    );
   }
 }

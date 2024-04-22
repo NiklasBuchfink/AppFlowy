@@ -63,6 +63,14 @@ class UserBackendService {
     throw UnimplementedError();
   }
 
+  static Future<FlowyResult<UserProfilePB, FlowyError>> signInWithMagicLink(
+    String email,
+    String redirectTo,
+  ) async {
+    final payload = MagicLinkSignInPB(email: email, redirectTo: redirectTo);
+    return UserEventMagicLinkSignIn(payload).send();
+  }
+
   static Future<FlowyResult<void, FlowyError>> signOut() {
     return UserEventSignOut().send();
   }
@@ -149,5 +157,52 @@ class UserBackendService {
       ..workspaceId = workspaceId
       ..newIcon = icon;
     return UserEventChangeWorkspaceIcon(request).send();
+  }
+
+  Future<FlowyResult<RepeatedWorkspaceMemberPB, FlowyError>>
+      getWorkspaceMembers(
+    String workspaceId,
+  ) async {
+    final data = QueryWorkspacePB()..workspaceId = workspaceId;
+    return UserEventGetWorkspaceMember(data).send();
+  }
+
+  Future<FlowyResult<void, FlowyError>> addWorkspaceMember(
+    String workspaceId,
+    String email,
+  ) async {
+    final data = AddWorkspaceMemberPB()
+      ..workspaceId = workspaceId
+      ..email = email;
+    return UserEventAddWorkspaceMember(data).send();
+  }
+
+  Future<FlowyResult<void, FlowyError>> removeWorkspaceMember(
+    String workspaceId,
+    String email,
+  ) async {
+    final data = RemoveWorkspaceMemberPB()
+      ..workspaceId = workspaceId
+      ..email = email;
+    return UserEventRemoveWorkspaceMember(data).send();
+  }
+
+  Future<FlowyResult<void, FlowyError>> updateWorkspaceMember(
+    String workspaceId,
+    String email,
+    AFRolePB role,
+  ) async {
+    final data = UpdateWorkspaceMemberPB()
+      ..workspaceId = workspaceId
+      ..email = email
+      ..role = role;
+    return UserEventUpdateWorkspaceMember(data).send();
+  }
+
+  Future<FlowyResult<void, FlowyError>> leaveWorkspace(
+    String workspaceId,
+  ) async {
+    final data = UserWorkspaceIdPB.create()..workspaceId = workspaceId;
+    return UserEventLeaveWorkspace(data).send();
   }
 }

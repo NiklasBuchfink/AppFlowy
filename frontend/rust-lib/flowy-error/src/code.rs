@@ -259,6 +259,24 @@ pub enum ErrorCode {
 
   #[error("Cloud request payload too large")]
   CloudRequestPayloadTooLarge = 90,
+
+  #[error("Workspace limit exceeded")]
+  WorkspaceLimitExceeded = 91,
+
+  #[error("Workspace member limit exceeded")]
+  WorkspaceMemberLimitExceeded = 92,
+
+  #[error("IndexWriter failed to commit")]
+  IndexWriterFailedCommit = 93,
+
+  #[error("Failed to open Index directory")]
+  FailedToOpenIndexDir = 94,
+
+  #[error("Failed to parse query")]
+  FailedToParseQuery = 95,
+
+  #[error("FolderIndexManager or its dependencies are unavailable")]
+  FolderIndexManagerUnavailable = 96,
 }
 
 impl ErrorCode {

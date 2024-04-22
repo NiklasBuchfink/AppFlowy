@@ -28,12 +28,10 @@ void main() {
 
   group('anonymous sign in on mobile', () {
     testWidgets('anon user and then sign in', (tester) async {
-      await tester.initializeAppFlowy(
-        cloudType: AuthenticatorType.local,
-      );
+      await tester.initializeAppFlowy();
 
       // click the anonymousSignInButton
-      final anonymousSignInButton = find.byType(SignInAnonymousButton);
+      final anonymousSignInButton = find.byType(SignInAnonymousButtonV2);
       expect(anonymousSignInButton, findsOneWidget);
       await tester.tapButton(anonymousSignInButton);
 

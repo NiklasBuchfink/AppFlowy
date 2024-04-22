@@ -31,7 +31,11 @@ class FieldInfo with _$FieldInfo {
 
   bool get isPrimary => field.isPrimary;
 
+  double? get width => fieldSettings?.width.toDouble();
+
   FieldVisibility? get visibility => fieldSettings?.visibility;
+
+  bool? get wrapCellContent => fieldSettings?.wrapCellContent;
 
   bool get canBeGroup {
     switch (field.fieldType) {
@@ -47,7 +51,7 @@ class FieldInfo with _$FieldInfo {
   }
 
   bool get canCreateFilter {
-    if (hasFilter) {
+    if (isGroupField) {
       return false;
     }
 
@@ -58,6 +62,7 @@ class FieldInfo with _$FieldInfo {
       case FieldType.RichText:
       case FieldType.SingleSelect:
       case FieldType.Checklist:
+      case FieldType.URL:
         return true;
       default:
         return false;

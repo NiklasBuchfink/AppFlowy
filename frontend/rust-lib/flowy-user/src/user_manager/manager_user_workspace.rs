@@ -9,7 +9,9 @@ use flowy_error::{FlowyError, FlowyResult};
 use flowy_folder_pub::entities::{AppFlowyData, ImportData};
 use flowy_sqlite::schema::user_workspace_table;
 use flowy_sqlite::{query_dsl::*, DBConnection, ExpressionMethods};
-use flowy_user_pub::entities::{Role, UserWorkspace, WorkspaceMember};
+use flowy_user_pub::entities::{
+  Role, UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember,
+};
 use lib_dispatch::prelude::af_spawn;
 
 use crate::entities::{RepeatedUserWorkspacePB, ResetWorkspacePB};
@@ -134,22 +136,25 @@ impl UserManager {
   #[instrument(skip(self), err)]
   pub async fn open_workspace(&self, workspace_id: &str) -> FlowyResult<()> {
     let uid = self.user_id()?;
-    let _ = self
+    let user_workspace = self
       .cloud_services
       .get_user_service()?
       .open_workspace(workspace_id)
-      .await;
-    if let Some(user_workspace) = self.get_user_workspace(uid, workspace_id) {
-      if let Err(err) = self
-        .user_status_callback
-        .read()
-        .await
-        .open_workspace(uid, &user_workspace)
-        .await
-      {
-        error!("Open workspace failed: {:?}", err);
-      }
+      .await?;
+
+    self
+      .authenticate_user
+      .set_user_workspace(user_workspace.clone())?;
+    if let Err(err) = self
+      .user_status_callback
+      .read()
+      .await
+      .open_workspace(uid, &user_workspace)
+      .await
+    {
+      error!("Open workspace failed: {:?}", err);
     }
+
     Ok(())
   }
 
@@ -202,6 +207,19 @@ impl UserManager {
     save_user_workspaces(uid, conn, &[user_workspace])
   }
 
+  pub async fn leave_workspace(&self, workspace_id: &str) -> FlowyResult<()> {
+    self
+      .cloud_services
+      .get_user_service()?
+      .leave_workspace(workspace_id)
+      .await?;
+
+    // delete workspace from local sqlite db
+    let uid = self.user_id()?;
+    let conn = self.db_connection(uid)?;
+    delete_user_workspaces(conn, workspace_id)
+  }
+
   pub async fn delete_workspace(&self, workspace_id: &str) -> FlowyResult<()> {
     self
       .cloud_services
@@ -214,6 +232,40 @@ impl UserManager {
     Ok(())
   }
 
+  pub async fn invite_member_to_workspace(
+    &self,
+    workspace_id: String,
+    invitee_email: String,
+    role: Role,
+  ) -> FlowyResult<()> {
+    self
+      .cloud_services
+      .get_user_service()?
+      .invite_workspace_member(invitee_email, workspace_id, role)
+      .await?;
+    Ok(())
+  }
+
+  pub async fn list_pending_workspace_invitations(&self) -> FlowyResult<Vec<WorkspaceInvitation>> {
+    let status = Some(WorkspaceInvitationStatus::Pending);
+    let invitations = self
+      .cloud_services
+      .get_user_service()?
+      .list_workspace_invitations(status)
+      .await?;
+    Ok(invitations)
+  }
+
+  pub async fn accept_workspace_invitation(&self, invite_id: String) -> FlowyResult<()> {
+    self
+      .cloud_services
+      .get_user_service()?
+      .accept_workspace_invitations(invite_id)
+      .await?;
+    Ok(())
+  }
+
+  // deprecated, use invite instead
   pub async fn add_workspace_member(
     &self,
     user_email: String,
@@ -319,14 +371,24 @@ pub fn save_user_workspaces(
 ) -> FlowyResult<()> {
   let user_workspaces = user_workspaces
     .iter()
-    .flat_map(|user_workspace| UserWorkspaceTable::try_from((uid, user_workspace)).ok())
-    .collect::<Vec<UserWorkspaceTable>>();
+    .map(|user_workspace| UserWorkspaceTable::try_from((uid, user_workspace)))
+    .collect::<Result<Vec<_>, _>>()?;
 
   conn.immediate_transaction(|conn| {
-    for user_workspace in user_workspaces {
-      if let Err(err) = diesel::update(
+    let existing_ids = user_workspace_table::dsl::user_workspace_table
+      .select(user_workspace_table::id)
+      .load::<String>(conn)?;
+    let new_ids: Vec<String> = user_workspaces.iter().map(|w| w.id.clone()).collect();
+    let ids_to_delete: Vec<String> = existing_ids
+      .into_iter()
+      .filter(|id| !new_ids.contains(id))
+      .collect();
+
+    // insert or update the user workspaces
+    for user_workspace in &user_workspaces {
+      let affected_rows = diesel::update(
         user_workspace_table::dsl::user_workspace_table
-          .filter(user_workspace_table::id.eq(user_workspace.id.clone())),
+          .filter(user_workspace_table::id.eq(&user_workspace.id)),
       )
       .set((
         user_workspace_table::name.eq(&user_workspace.name),
@@ -334,18 +396,24 @@ pub fn save_user_workspaces(
         user_workspace_table::database_storage_id.eq(&user_workspace.database_storage_id),
         user_workspace_table::icon.eq(&user_workspace.icon),
       ))
-      .execute(conn)
-      .and_then(|rows| {
-        if rows == 0 {
-          let _ = diesel::insert_into(user_workspace_table::table)
-            .values(user_workspace)
-            .execute(conn)?;
-        }
-        Ok(())
-      }) {
-        tracing::error!("Error saving user workspace: {:?}", err);
+      .execute(conn)?;
+
+      if affected_rows == 0 {
+        diesel::insert_into(user_workspace_table::table)
+          .values(user_workspace)
+          .execute(conn)?;
       }
     }
+
+    // delete the user workspaces that are not in the new list
+    if !ids_to_delete.is_empty() {
+      diesel::delete(
+        user_workspace_table::dsl::user_workspace_table
+          .filter(user_workspace_table::id.eq_any(ids_to_delete)),
+      )
+      .execute(conn)?;
+    }
+
     Ok::<(), FlowyError>(())
   })
 }

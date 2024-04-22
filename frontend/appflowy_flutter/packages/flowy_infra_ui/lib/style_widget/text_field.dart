@@ -20,6 +20,7 @@ class FlowyTextField extends StatefulWidget {
   final bool submitOnLeave;
   final Duration? debounceDuration;
   final String? errorText;
+  final Widget? error;
   final int? maxLines;
   final bool showCounter;
   final Widget? prefixIcon;
@@ -30,6 +31,7 @@ class FlowyTextField extends StatefulWidget {
   final TextStyle? hintStyle;
   final InputDecoration? decoration;
   final TextAlignVertical? textAlignVertical;
+  final TextInputAction? textInputAction;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
 
@@ -50,6 +52,7 @@ class FlowyTextField extends StatefulWidget {
     this.submitOnLeave = false,
     this.debounceDuration,
     this.errorText,
+    this.error,
     this.maxLines = 1,
     this.showCounter = true,
     this.prefixIcon,
@@ -60,6 +63,7 @@ class FlowyTextField extends StatefulWidget {
     this.hintStyle,
     this.decoration,
     this.textAlignVertical,
+    this.textInputAction,
     this.keyboardType = TextInputType.multiline,
     this.inputFormatters,
   });
@@ -176,6 +180,7 @@ class FlowyTextFieldState extends State<FlowyTextField> {
             isDense: false,
             hintText: widget.hintText,
             errorText: widget.errorText,
+            error: widget.error,
             errorStyle: Theme.of(context)
                 .textTheme
                 .bodySmall!

@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Error};
-use collab::core::collab::CollabDocState;
 use collab_entity::CollabObject;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -109,6 +107,16 @@ impl UserCloudService for LocalServerUserAuthServiceImpl {
     })
   }
 
+  fn sign_in_with_magic_link(
+    &self,
+    _email: &str,
+    _redirect_to: &str,
+  ) -> FutureResult<(), FlowyError> {
+    FutureResult::new(async {
+      Err(FlowyError::local_version_not_support().with_context("Not support"))
+    })
+  }
+
   fn generate_oauth_url_with_provider(&self, _provider: &str) -> FutureResult<String, FlowyError> {
     FutureResult::new(async {
       Err(FlowyError::internal().with_context("Can't oauth url when using offline mode"))
@@ -150,11 +158,17 @@ impl UserCloudService for LocalServerUserAuthServiceImpl {
     FutureResult::new(async { Ok(vec![]) })
   }
 
-  fn get_user_awareness_doc_state(&self, _uid: i64) -> FutureResult<CollabDocState, Error> {
-    FutureResult::new(async { Ok(vec![]) })
+  fn get_user_awareness_doc_state(
+    &self,
+    _uid: i64,
+    _workspace_id: &str,
+    _object_id: &str,
+  ) -> FutureResult<Vec<u8>, FlowyError> {
+    // must return record not found error
+    FutureResult::new(async { Err(FlowyError::record_not_found()) })
   }
 
-  fn reset_workspace(&self, _collab_object: CollabObject) -> FutureResult<(), Error> {
+  fn reset_workspace(&self, _collab_object: CollabObject) -> FutureResult<(), FlowyError> {
     FutureResult::new(async { Ok(()) })
   }
 
@@ -162,7 +176,6 @@ impl UserCloudService for LocalServerUserAuthServiceImpl {
     &self,
     _collab_object: &CollabObject,
     _data: Vec<u8>,
-    _override_if_exist: bool,
   ) -> FutureResult<(), FlowyError> {
     FutureResult::new(async { Ok(()) })
   }
@@ -171,8 +184,13 @@ impl UserCloudService for LocalServerUserAuthServiceImpl {
     &self,
     _workspace_id: &str,
     _objects: Vec<UserCollabParams>,
-  ) -> FutureResult<(), Error> {
-    FutureResult::new(async { Err(anyhow!("local server doesn't support create collab object")) })
+  ) -> FutureResult<(), FlowyError> {
+    FutureResult::new(async {
+      Err(
+        FlowyError::local_version_not_support()
+          .with_context("local server doesn't support batch create collab object"),
+      )
+    })
   }
 
   fn create_workspace(&self, _workspace_name: &str) -> FutureResult<UserWorkspace, FlowyError> {
