@@ -55,8 +55,16 @@ impl UserWorkspaceService for UserWorkspaceServiceImpl {
   ) -> FlowyResult<()> {
     self
       .database_manager
-      .track_database(ids_by_database_id)
+      .update_database_indexing(ids_by_database_id)
       .await?;
+    Ok(())
+  }
+
+  fn did_delete_workspace(&self, workspace_id: String) -> FlowyResult<()> {
+    self
+      .folder_manager
+      .remove_indices_for_workspace(workspace_id)?;
+
     Ok(())
   }
 }

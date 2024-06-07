@@ -1,3 +1,5 @@
+use std::io;
+use std::io::Write;
 use std::sync::{Arc, RwLock};
 
 use chrono::Local;
@@ -88,7 +90,7 @@ impl Builder {
         .pretty()
         .with_env_filter(env_filter)
         .finish()
-        .with(FlowyFormattingLayer::new(StdoutWriter))
+        .with(FlowyFormattingLayer::new(DebugStdoutWriter))
         .with(JsonStorageLayer)
         .with(file_layer);
       set_global_default(subscriber).map_err(|e| format!("{:?}", e))?;
@@ -106,12 +108,16 @@ impl tracing_subscriber::fmt::time::FormatTime for CustomTime {
   }
 }
 
-pub struct StdoutWriter;
+pub struct DebugStdoutWriter;
 
-impl<'a> MakeWriter<'a> for StdoutWriter {
-  type Writer = std::io::Stdout;
+impl<'a> MakeWriter<'a> for DebugStdoutWriter {
+  type Writer = Box<dyn Write>;
 
   fn make_writer(&'a self) -> Self::Writer {
-    std::io::stdout()
+    if std::env::var("DISABLE_EVENT_LOG").unwrap_or("false".to_string()) == "true" {
+      Box::new(io::sink())
+    } else {
+      Box::new(io::stdout())
+    }
   }
 }

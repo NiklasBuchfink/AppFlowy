@@ -1,6 +1,8 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/widgets/widgets.dart';
+import 'package:appflowy/util/theme_extension.dart';
+import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/members/workspace_member_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
@@ -26,7 +28,13 @@ class MobileWorkspaceMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> children = [];
+    final List<Widget> children = [
+      _WorkspaceUserItem(userProfile: userProfile),
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Divider(height: 0.5),
+      ),
+    ];
     for (var i = 0; i < workspaces.length; i++) {
       final workspace = workspaces[i];
       children.add(
@@ -34,7 +42,7 @@ class MobileWorkspaceMenu extends StatelessWidget {
           key: ValueKey(workspace.workspaceId),
           userProfile: userProfile,
           workspace: workspace,
-          showTopBorder: i == 0,
+          showTopBorder: false,
           currentWorkspace: currentWorkspace,
           onWorkspaceSelected: onWorkspaceSelected,
         ),
@@ -42,6 +50,34 @@ class MobileWorkspaceMenu extends StatelessWidget {
     }
     return Column(
       children: children,
+    );
+  }
+}
+
+class _WorkspaceUserItem extends StatelessWidget {
+  const _WorkspaceUserItem({required this.userProfile});
+
+  final UserProfilePB userProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).isLightMode
+        ? const Color(0x99333333)
+        : const Color(0x99CCCCCC);
+    return FlowyOptionTile.text(
+      height: 32,
+      showTopBorder: false,
+      showBottomBorder: false,
+      content: Expanded(
+        child: Padding(
+          padding: const EdgeInsets.only(),
+          child: FlowyText(
+            userProfile.email,
+            fontSize: 14,
+            color: color,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -101,10 +137,18 @@ class _WorkspaceMenuItem extends StatelessWidget {
             ),
             height: 60,
             showTopBorder: showTopBorder,
+            showBottomBorder: false,
             leftIcon: WorkspaceIcon(
               enableEdit: false,
               iconSize: 26,
+              fontSize: 16.0,
               workspace: workspace,
+              onSelected: (result) => context.read<UserWorkspaceBloc>().add(
+                    UserWorkspaceEvent.updateWorkspaceIcon(
+                      workspace.workspaceId,
+                      result.emoji,
+                    ),
+                  ),
             ),
             trailing: workspace.workspaceId == currentWorkspace.workspaceId
                 ? const FlowySvg(

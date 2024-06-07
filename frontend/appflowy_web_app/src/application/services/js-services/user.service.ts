@@ -1,11 +1,45 @@
 import { UserService } from '@/application/services/services.type';
-import { UserProfile } from '@/application/services/user.type';
-import { HttpClient } from '@/application/services/js-services/http/client';
+import { UserProfile, UserWorkspace } from '@/application/user.type';
+import { APIService } from 'src/application/services/js-services/wasm';
+import {
+  getAuthInfo,
+  getSignInUser,
+  getUserWorkspace,
+  invalidToken,
+  setSignInUser,
+  setUserWorkspace,
+} from 'src/application/services/js-services/session';
+import { asyncDataDecorator } from '@/application/services/js-services/decorator';
+
+async function getUser() {
+  try {
+    const user = await APIService.getUser();
+
+    return user;
+  } catch (e) {
+    console.error(e);
+    invalidToken();
+  }
+}
 
 export class JSUserService implements UserService {
-  constructor(private httpClient: HttpClient) {}
-
+  @asyncDataDecorator<void, UserProfile>(getSignInUser, setSignInUser, getUser)
   async getUserProfile(): Promise<UserProfile> {
-    return this.httpClient.getUser();
+    if (!getAuthInfo()) {
+      return Promise.reject('Not authenticated');
+    }
+
+    await this.getUserWorkspace();
+
+    return null!;
+  }
+
+  async checkUser(): Promise<boolean> {
+    return (await getSignInUser()) !== undefined;
+  }
+
+  @asyncDataDecorator<void, UserWorkspace>(getUserWorkspace, setUserWorkspace, APIService.getUserWorkspace)
+  async getUserWorkspace(): Promise<UserWorkspace> {
+    return null!;
   }
 }

@@ -57,6 +57,21 @@ pub struct ViewPB {
 
   #[pb(index = 8)]
   pub is_favorite: bool,
+
+  #[pb(index = 9, one_of)]
+  pub extra: Option<String>,
+
+  // user_id
+  #[pb(index = 10, one_of)]
+  pub created_by: Option<i64>,
+
+  // timestamp
+  #[pb(index = 11)]
+  pub last_edited: i64,
+
+  // user_id
+  #[pb(index = 12, one_of)]
+  pub last_edited_by: Option<i64>,
 }
 
 pub fn view_pb_without_child_views(view: View) -> ViewPB {
@@ -69,6 +84,27 @@ pub fn view_pb_without_child_views(view: View) -> ViewPB {
     layout: view.layout.into(),
     icon: view.icon.clone().map(|icon| icon.into()),
     is_favorite: view.is_favorite,
+    extra: view.extra,
+    created_by: view.created_by,
+    last_edited: view.last_edited_time,
+    last_edited_by: view.last_edited_by,
+  }
+}
+
+pub fn view_pb_without_child_views_from_arc(view: Arc<View>) -> ViewPB {
+  ViewPB {
+    id: view.id.clone(),
+    parent_view_id: view.parent_view_id.clone(),
+    name: view.name.clone(),
+    create_time: view.created_at,
+    child_views: Default::default(),
+    layout: view.layout.clone().into(),
+    icon: view.icon.clone().map(|icon| icon.into()),
+    is_favorite: view.is_favorite,
+    extra: view.extra.clone(),
+    created_by: view.created_by,
+    last_edited: view.last_edited_time,
+    last_edited_by: view.last_edited_by,
   }
 }
 
@@ -86,6 +122,10 @@ pub fn view_pb_with_child_views(view: Arc<View>, child_views: Vec<Arc<View>>) ->
     layout: view.layout.clone().into(),
     icon: view.icon.clone().map(|icon| icon.into()),
     is_favorite: view.is_favorite,
+    extra: view.extra.clone(),
+    created_by: view.created_by,
+    last_edited: view.last_edited_time,
+    last_edited_by: view.last_edited_by,
   }
 }
 
@@ -96,6 +136,7 @@ pub enum ViewLayoutPB {
   Grid = 1,
   Board = 2,
   Calendar = 3,
+  Chat = 4,
 }
 
 impl ViewLayoutPB {
@@ -114,6 +155,7 @@ impl std::convert::From<ViewLayout> for ViewLayoutPB {
       ViewLayout::Board => ViewLayoutPB::Board,
       ViewLayout::Document => ViewLayoutPB::Document,
       ViewLayout::Calendar => ViewLayoutPB::Calendar,
+      ViewLayout::Chat => ViewLayoutPB::Chat,
     }
   }
 }
@@ -131,6 +173,26 @@ pub struct SectionViewsPB {
 pub struct RepeatedViewPB {
   #[pb(index = 1)]
   pub items: Vec<ViewPB>,
+}
+
+#[derive(Eq, PartialEq, Debug, Default, ProtoBuf, Clone)]
+pub struct RepeatedFavoriteViewPB {
+  #[pb(index = 1)]
+  pub items: Vec<SectionViewPB>,
+}
+
+#[derive(Eq, PartialEq, Debug, Default, ProtoBuf, Clone)]
+pub struct RepeatedRecentViewPB {
+  #[pb(index = 1)]
+  pub items: Vec<SectionViewPB>,
+}
+
+#[derive(Eq, PartialEq, Debug, Default, ProtoBuf, Clone)]
+pub struct SectionViewPB {
+  #[pb(index = 1)]
+  pub item: ViewPB,
+  #[pb(index = 2)]
+  pub timestamp: i64,
 }
 
 impl std::convert::From<Vec<ViewPB>> for RepeatedViewPB {
@@ -340,6 +402,20 @@ pub struct UpdateViewPayloadPB {
 
   #[pb(index = 6, one_of)]
   pub is_favorite: Option<bool>,
+
+  #[pb(index = 7, one_of)]
+  // this value used to store the extra data with JSON format
+  // for document:
+  //  - cover: { type: "", value: "" }
+  //    - type: "0" represents normal color,
+  //            "1" represents gradient color,
+  //            "2" represents built-in image,
+  //            "3" represents custom image,
+  //            "4" represents local image,
+  //            "5" represents unsplash image
+  //  - line_height_layout: "small" or "normal" or "large"
+  //  - font_layout: "small", or "normal", or "large"
+  pub extra: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -350,6 +426,7 @@ pub struct UpdateViewParams {
   pub thumbnail: Option<String>,
   pub layout: Option<ViewLayout>,
   pub is_favorite: Option<bool>,
+  pub extra: Option<String>,
 }
 
 impl TryInto<UpdateViewParams> for UpdateViewPayloadPB {
@@ -377,6 +454,7 @@ impl TryInto<UpdateViewParams> for UpdateViewPayloadPB {
       thumbnail,
       is_favorite,
       layout: self.layout.map(|ty| ty.into()),
+      extra: self.extra,
     })
   }
 }

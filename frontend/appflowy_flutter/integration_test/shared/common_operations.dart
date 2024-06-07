@@ -1,22 +1,19 @@
 import 'dart:io';
 
-import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/presentation/presentation.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/emoji_picker_button.dart';
 import 'package:appflowy/plugins/document/presentation/share/share_button.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/presentation/screens/screens.dart';
 import 'package:appflowy/user/presentation/screens/sign_in_screen/widgets/widgets.dart';
-import 'package:appflowy/workspace/presentation/home/menu/sidebar/sidebar_new_page_button.dart';
-import 'package:appflowy/workspace/presentation/home/menu/sidebar/sidebar_workspace.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_new_page_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_menu.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/sidebar_workspace.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/draggable_view_item.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.dart';
@@ -24,12 +21,18 @@ import 'package:appflowy/workspace/presentation/home/menu/view/view_more_action_
 import 'package:appflowy/workspace/presentation/notifications/widgets/flowy_tab.dart';
 import 'package:appflowy/workspace/presentation/notifications/widgets/notification_button.dart';
 import 'package:appflowy/workspace/presentation/notifications/widgets/notification_tab_bar.dart';
-import 'package:appflowy/workspace/presentation/settings/widgets/settings_language_view.dart';
+import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
+import 'package:appflowy/workspace/presentation/widgets/more_view_actions/more_view_actions.dart';
+import 'package:appflowy/workspace/presentation/widgets/more_view_actions/widgets/common_view_action.dart';
 import 'package:appflowy/workspace/presentation/widgets/view_title_bar.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/buttons/primary_button.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'emoji.dart';
@@ -56,6 +59,7 @@ extension CommonOperations on WidgetTester {
   /// Tap the + button on the home page.
   Future<void> tapAddViewButton({
     String name = gettingStarted,
+    ViewLayoutPB layout = ViewLayoutPB.Document,
   }) async {
     await hoverOnPageName(
       name,
@@ -70,27 +74,6 @@ extension CommonOperations on WidgetTester {
   Future<void> tapNewPageButton() async {
     final newPageButton = find.byType(SidebarNewPageButton);
     await tapButton(newPageButton);
-  }
-
-  /// Tap the create document button.
-  ///
-  /// Must call [tapAddViewButton] first.
-  Future<void> tapCreateDocumentButton() async {
-    await tapButtonWithName(LocaleKeys.document_menuName.tr());
-  }
-
-  /// Tap the create grid button.
-  ///
-  /// Must call [tapAddViewButton] first.
-  Future<void> tapCreateGridButton() async {
-    await tapButtonWithName(LocaleKeys.grid_menuName.tr());
-  }
-
-  /// Tap the create grid button.
-  ///
-  /// Must call [tapAddViewButton] first.
-  Future<void> tapCreateCalendarButton() async {
-    await tapButtonWithName(LocaleKeys.calendar_menuName.tr());
   }
 
   /// Tap the import button.
@@ -181,15 +164,9 @@ extension CommonOperations on WidgetTester {
   }) async {
     final pageNames = findPageName(name, layout: layout);
     if (useLast) {
-      await hoverOnWidget(
-        pageNames.last,
-        onHover: onHover,
-      );
+      await hoverOnWidget(pageNames.last, onHover: onHover);
     } else {
-      await hoverOnWidget(
-        pageNames.first,
-        onHover: onHover,
-      );
+      await hoverOnWidget(pageNames.first, onHover: onHover);
     }
   }
 
@@ -302,7 +279,7 @@ extension CommonOperations on WidgetTester {
     bool openAfterCreated = true,
   }) async {
     // create a new page
-    await tapAddViewButton(name: parentName ?? gettingStarted);
+    await tapAddViewButton(name: parentName ?? gettingStarted, layout: layout);
     await tapButtonWithName(layout.menuName);
     final settingsOrFailure = await getIt<KeyValueStorage>().getWithFormat(
       KVKeys.showRenameDialogWhenCreatingNewFile,
@@ -497,9 +474,7 @@ extension CommonOperations on WidgetTester {
     await pumpAndSettle();
   }
 
-  Future<void> openNotificationHub({
-    int tabIndex = 0,
-  }) async {
+  Future<void> openNotificationHub({int tabIndex = 0}) async {
     final finder = find.descendant(
       of: find.byType(NotificationButton),
       matching: find.byWidgetPredicate(
@@ -538,17 +513,9 @@ extension CommonOperations on WidgetTester {
 
     final workspace = find.byType(SidebarWorkspace);
     expect(workspace, findsOneWidget);
-    // click it
-    await tapButton(workspace, milliseconds: 2000);
-  }
 
-  Future<void> closeCollaborativeWorkspaceMenu() async {
-    if (!FeatureFlag.collaborativeWorkspace.isOn) {
-      throw UnsupportedError('Collaborative workspace is not enabled');
-    }
-
-    await tapAt(Offset.zero);
-    await pumpAndSettle();
+    await tapButton(workspace, pumpAndSettle: false);
+    await pump(const Duration(seconds: 5));
   }
 
   Future<void> createCollaborativeWorkspace(String name) async {
@@ -563,7 +530,8 @@ extension CommonOperations on WidgetTester {
     // click the create button
     final createButton = find.byKey(createWorkspaceButtonKey);
     expect(createButton, findsOneWidget);
-    await tapButton(createButton);
+    await tapButton(createButton, pumpAndSettle: false);
+    await pump(const Duration(seconds: 5));
 
     // see the create workspace dialog
     final createWorkspaceDialog = find.byType(CreateWorkspaceDialog);
@@ -572,8 +540,85 @@ extension CommonOperations on WidgetTester {
     // input the workspace name
     await enterText(find.byType(TextField), name);
 
-    await tapButtonWithName(LocaleKeys.button_ok.tr());
+    await tapButtonWithName(LocaleKeys.button_ok.tr(), pumpAndSettle: false);
+    await pump(const Duration(seconds: 5));
   }
+
+  // For mobile platform to launch the app in anonymous mode
+  Future<void> launchInAnonymousMode() async {
+    assert(
+      [TargetPlatform.android, TargetPlatform.iOS]
+          .contains(defaultTargetPlatform),
+      'This method is only supported on mobile platforms',
+    );
+
+    await initializeAppFlowy();
+
+    final anonymousSignInButton = find.byType(SignInAnonymousButtonV2);
+    expect(anonymousSignInButton, findsOneWidget);
+    await tapButton(anonymousSignInButton);
+
+    await pumpUntilFound(find.byType(MobileHomeScreen));
+  }
+
+  Future<void> tapSvgButton(FlowySvgData svg) async {
+    final button = find.byWidgetPredicate(
+      (widget) => widget is FlowySvg && widget.svg.path == svg.path,
+    );
+    await tapButton(button);
+  }
+
+  Future<void> openMoreViewActions() async {
+    final button = find.byType(MoreViewActions);
+    await tap(button);
+    await pumpAndSettle();
+  }
+
+  /// Presses on the Duplicate ViewAction in the [MoreViewActions] popup.
+  ///
+  /// [openMoreViewActions] must be called beforehand!
+  ///
+  Future<void> duplicateByMoreViewActions() async {
+    final button = find.descendant(
+      of: find.byType(ListView),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is ViewAction && widget.type == ViewActionType.duplicate,
+      ),
+    );
+    await tap(button);
+    await pump();
+  }
+
+  /// Presses on the Delete ViewAction in the [MoreViewActions] popup.
+  ///
+  /// [openMoreViewActions] must be called beforehand!
+  ///
+  Future<void> deleteByMoreViewActions() async {
+    final button = find.descendant(
+      of: find.byType(ListView),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is ViewAction && widget.type == ViewActionType.delete,
+      ),
+    );
+    await tap(button);
+    await pump();
+  }
+}
+
+extension SettingsFinder on CommonFinders {
+  Finder findSettingsScrollable() => find
+      .descendant(
+        of: find
+            .descendant(
+              of: find.byType(SettingsBody),
+              matching: find.byType(SingleChildScrollView),
+            )
+            .first,
+        matching: find.byType(Scrollable),
+      )
+      .first;
 }
 
 extension ViewLayoutPBTest on ViewLayoutPB {

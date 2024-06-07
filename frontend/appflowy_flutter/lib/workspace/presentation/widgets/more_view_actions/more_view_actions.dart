@@ -1,6 +1,7 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
+import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/application/view_info/view_info_bloc.dart';
 import 'package:appflowy/workspace/presentation/widgets/more_view_actions/widgets/common_view_action.dart';
 import 'package:appflowy/workspace/presentation/widgets/more_view_actions/widgets/font_size_action.dart';
@@ -32,22 +33,7 @@ class MoreViewActions extends StatefulWidget {
 }
 
 class _MoreViewActionsState extends State<MoreViewActions> {
-  late final List<Widget> viewActions;
   final popoverMutex = PopoverMutex();
-
-  @override
-  void initState() {
-    super.initState();
-    viewActions = ViewActionType.values
-        .map(
-          (type) => ViewAction(
-            type: type,
-            view: widget.view,
-            mutex: popoverMutex,
-          ),
-        )
-        .toList();
-  }
 
   @override
   void dispose() {
@@ -73,7 +59,13 @@ class _MoreViewActionsState extends State<MoreViewActions> {
                 const FontSizeAction(),
                 const Divider(height: 4),
               ],
-              ...viewActions,
+              ...ViewActionType.values.map(
+                (type) => ViewAction(
+                  type: type,
+                  view: widget.view,
+                  mutex: popoverMutex,
+                ),
+              ),
               if (state.documentCounters != null ||
                   state.createdAt != null) ...[
                 const Divider(height: 4),
@@ -86,13 +78,17 @@ class _MoreViewActionsState extends State<MoreViewActions> {
               ],
             ];
 
-            return ListView.separated(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              itemCount: actions.length,
-              separatorBuilder: (_, __) => const VSpace(4),
-              physics: StyledScrollPhysics(),
-              itemBuilder: (_, index) => actions[index],
+            return BlocProvider(
+              create: (_) =>
+                  ViewBloc(view: widget.view)..add(const ViewEvent.initial()),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: actions.length,
+                separatorBuilder: (_, __) => const VSpace(4),
+                physics: StyledScrollPhysics(),
+                itemBuilder: (_, index) => actions[index],
+              ),
             );
           },
           child: FlowyTooltip(
@@ -104,10 +100,10 @@ class _MoreViewActionsState extends State<MoreViewActions> {
               builder: (context, isHovering) => Padding(
                 padding: const EdgeInsets.all(6),
                 child: FlowySvg(
-                  FlowySvgs.three_dots_vertical_s,
-                  size: const Size.square(16),
+                  FlowySvgs.three_dots_s,
+                  size: const Size.square(18),
                   color: isHovering
-                      ? Theme.of(context).colorScheme.onPrimary
+                      ? Theme.of(context).colorScheme.onSecondary
                       : Theme.of(context).iconTheme.color,
                 ),
               ),

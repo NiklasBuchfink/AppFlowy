@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-
+import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy/core/frameless_window.dart';
 import 'package:appflowy/plugins/blank/blank.dart';
 import 'package:appflowy/startup/plugin/plugin.dart';
@@ -12,6 +11,8 @@ import 'package:appflowy/workspace/presentation/home/toast.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:time/time.dart';
@@ -29,10 +30,12 @@ class HomeStack extends StatelessWidget {
     super.key,
     required this.delegate,
     required this.layout,
+    required this.userProfile,
   });
 
   final HomeStackDelegate delegate;
   final HomeLayout layout;
+  final UserProfilePB userProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +58,11 @@ class HomeStack extends StatelessWidget {
                   controller: pageController,
                   children: state.pageManagers
                       .map(
-                        (pm) => PageStack(pageManager: pm, delegate: delegate),
+                        (pm) => PageStack(
+                          pageManager: pm,
+                          delegate: delegate,
+                          userProfile: userProfile,
+                        ),
                       )
                       .toList(),
                 ),
@@ -73,11 +80,13 @@ class PageStack extends StatefulWidget {
     super.key,
     required this.pageManager,
     required this.delegate,
+    required this.userProfile,
   });
 
   final PageManager pageManager;
 
   final HomeStackDelegate delegate;
+  final UserProfilePB userProfile;
 
   @override
   State<PageStack> createState() => _PageStackState();
@@ -93,6 +102,7 @@ class _PageStackState extends State<PageStack>
       color: Theme.of(context).colorScheme.surface,
       child: FocusTraversalGroup(
         child: widget.pageManager.stackWidget(
+          userProfile: widget.userProfile,
           onDeleted: (view, index) {
             widget.delegate.didDeleteStackWidget(view, index);
           },
@@ -110,9 +120,7 @@ class FadingIndexedStack extends StatefulWidget {
     super.key,
     required this.index,
     required this.children,
-    this.duration = const Duration(
-      milliseconds: 250,
-    ),
+    this.duration = const Duration(milliseconds: 250),
   });
 
   final int index;
@@ -135,8 +143,10 @@ class FadingIndexedStackState extends State<FadingIndexedStack> {
   @override
   void didUpdateWidget(FadingIndexedStack oldWidget) {
     if (oldWidget.index == widget.index) return;
-    setState(() => _targetOpacity = 0);
-    Future.delayed(1.milliseconds, () => setState(() => _targetOpacity = 1));
+    _targetOpacity = 0;
+    SchedulerBinding.instance.addPostFrameCallback(
+      (_) => setState(() => _targetOpacity = 1),
+    );
     super.didUpdateWidget(oldWidget);
   }
 
@@ -174,12 +184,14 @@ class PageNotifier extends ChangeNotifier {
 
   /// This is the only place where the plugin is set.
   /// No need compare the old plugin with the new plugin. Just set it.
-  set plugin(Plugin newPlugin) {
+  void setPlugin(Plugin newPlugin, bool setLatest) {
     _plugin.dispose();
     newPlugin.init();
 
-    /// Set the plugin view as the latest view.
-    FolderEventSetLatestView(ViewIdPB(value: newPlugin.id)).send();
+    // Set the plugin view as the latest view.
+    if (setLatest) {
+      FolderEventSetLatestView(ViewIdPB(value: newPlugin.id)).send();
+    }
 
     _plugin = newPlugin;
     notifyListeners();
@@ -202,8 +214,8 @@ class PageManager {
 
   Plugin get plugin => _notifier.plugin;
 
-  void setPlugin(Plugin newPlugin) {
-    _notifier.plugin = newPlugin;
+  void setPlugin(Plugin newPlugin, bool setLatest) {
+    _notifier.setPlugin(newPlugin, setLatest);
   }
 
   void setStackWithId(String id) {
@@ -217,14 +229,18 @@ class PageManager {
       ],
       child: Selector<PageNotifier, Widget>(
         selector: (context, notifier) => notifier.titleWidget,
-        builder: (context, widget, child) {
-          return MoveWindowDetector(child: HomeTopBar(layout: layout));
-        },
+        builder: (_, __, child) => MoveWindowDetector(
+          showTitleBar: true,
+          child: HomeTopBar(layout: layout),
+        ),
       ),
     );
   }
 
-  Widget stackWidget({required Function(ViewPB, int?) onDeleted}) {
+  Widget stackWidget({
+    required UserProfilePB userProfile,
+    required Function(ViewPB, int?) onDeleted,
+  }) {
     return MultiProvider(
       providers: [ChangeNotifierProvider.value(value: _notifier)],
       child: Consumer(
@@ -236,7 +252,10 @@ class PageManager {
                 if (pluginType == notifier.plugin.pluginType) {
                   final builder = notifier.plugin.widgetBuilder;
                   final pluginWidget = builder.buildWidget(
-                    context: PluginContext(onDeleted: onDeleted),
+                    context: PluginContext(
+                      onDeleted: onDeleted,
+                      userProfile: userProfile,
+                    ),
                     shrinkWrap: false,
                   );
 
@@ -270,15 +289,13 @@ class HomeTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSecondaryContainer,
-        border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor),
-        ),
+        color: Theme.of(context).colorScheme.surface,
       ),
-      height: HomeSizes.topBarHeight,
+      height: HomeSizes.topBarHeight + HomeInsets.topBarTitleVerticalPadding,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: HomeInsets.topBarTitlePadding,
+          horizontal: HomeInsets.topBarTitleHorizontalPadding,
+          vertical: HomeInsets.topBarTitleVerticalPadding,
         ),
         child: Row(
           children: [

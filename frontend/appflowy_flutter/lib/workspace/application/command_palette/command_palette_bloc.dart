@@ -7,11 +7,13 @@ import 'package:appflowy/plugins/trash/application/trash_service.dart';
 import 'package:appflowy/workspace/application/command_palette/search_listener.dart';
 import 'package:appflowy/workspace/application/command_palette/search_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/trash.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-search/entities.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';
 import 'package:bloc/bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'command_palette_bloc.freezed.dart';
+
+const _searchChannel = 'CommandPalette';
 
 class CommandPaletteBloc
     extends Bloc<CommandPaletteEvent, CommandPaletteState> {
@@ -27,9 +29,12 @@ class CommandPaletteBloc
 
   Timer? _debounceOnChanged;
   final TrashService _trashService = TrashService();
-  final SearchListener _searchListener = SearchListener();
+  final SearchListener _searchListener = SearchListener(
+    channel: _searchChannel,
+  );
   final TrashListener _trashListener = TrashListener();
   String? _oldQuery;
+  String? _workspaceId;
 
   @override
   Future<void> close() {
@@ -44,8 +49,7 @@ class CommandPaletteBloc
         searchChanged: _debounceOnSearchChanged,
         trashChanged: (trash) async {
           if (trash != null) {
-            emit(state.copyWith(trash: trash));
-            return;
+            return emit(state.copyWith(trash: trash));
           }
 
           final trashOrFailure = await _trashService.readTrash();
@@ -59,10 +63,14 @@ class CommandPaletteBloc
           }
         },
         performSearch: (search) async {
-          if (search.isNotEmpty) {
+          if (search.isNotEmpty && search != state.query) {
             _oldQuery = state.query;
             emit(state.copyWith(query: search, isLoading: true));
-            await SearchBackendService.performSearch(search);
+            await SearchBackendService.performSearch(
+              search,
+              workspaceId: _workspaceId,
+              channel: _searchChannel,
+            );
           } else {
             emit(state.copyWith(query: null, isLoading: false, results: []));
           }
@@ -82,6 +90,10 @@ class CommandPaletteBloc
             ),
           );
         },
+        workspaceChanged: (workspaceId) {
+          _workspaceId = workspaceId;
+          emit(state.copyWith(results: [], query: '', isLoading: false));
+        },
       );
     });
   }
@@ -89,22 +101,15 @@ class CommandPaletteBloc
   Future<void> _initTrash() async {
     _trashListener.start(
       trashUpdated: (trashOrFailed) {
-        final trash = trashOrFailed.fold(
-          (trash) => trash,
-          (error) => null,
-        );
-
+        final trash = trashOrFailed.toNullable();
         add(CommandPaletteEvent.trashChanged(trash: trash));
       },
     );
 
     final trashOrFailure = await _trashService.readTrash();
-    final trashRes = trashOrFailure.fold(
-      (trash) => trash,
-      (error) => null,
-    );
+    final trash = trashOrFailure.toNullable();
 
-    add(CommandPaletteEvent.trashChanged(trash: trashRes?.items));
+    add(CommandPaletteEvent.trashChanged(trash: trash?.items));
   }
 
   void _debounceOnSearchChanged(String value) {
@@ -162,6 +167,10 @@ class CommandPaletteEvent with _$CommandPaletteEvent {
   const factory CommandPaletteEvent.trashChanged({
     @Default(null) List<TrashPB>? trash,
   }) = _TrashChanged;
+
+  const factory CommandPaletteEvent.workspaceChanged({
+    @Default(null) String? workspaceId,
+  }) = _WorkspaceChanged;
 }
 
 @freezed

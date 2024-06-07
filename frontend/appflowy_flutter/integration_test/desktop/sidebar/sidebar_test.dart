@@ -39,6 +39,9 @@ void main() {
       await tester.tapAnonymousSignInButton();
 
       for (final layout in ViewLayoutPB.values) {
+        if (layout == ViewLayoutPB.Chat) {
+          continue;
+        }
         // create a new page
         final name = 'AppFlowy_$layout';
         await tester.createNewPageWithNameUnderParent(
@@ -61,10 +64,12 @@ void main() {
             expect(find.byType(GridPage), findsOneWidget);
             break;
           case ViewLayoutPB.Board:
-            expect(find.byType(BoardPage), findsOneWidget);
+            expect(find.byType(DesktopBoardPage), findsOneWidget);
             break;
           case ViewLayoutPB.Calendar:
             expect(find.byType(CalendarPage), findsOneWidget);
+            break;
+          case ViewLayoutPB.Chat:
             break;
         }
 

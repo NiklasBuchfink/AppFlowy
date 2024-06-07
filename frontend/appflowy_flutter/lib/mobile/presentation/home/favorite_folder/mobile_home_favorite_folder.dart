@@ -27,7 +27,7 @@ class MobileFavoriteFolder extends StatelessWidget {
     }
 
     return BlocProvider<FolderBloc>(
-      create: (context) => FolderBloc(type: FolderCategoryType.favorite)
+      create: (context) => FolderBloc(type: FolderSpaceType.favorite)
         ..add(
           const FolderEvent.initial(),
         ),
@@ -54,23 +54,25 @@ class MobileFavoriteFolder extends StatelessWidget {
                 ...views.map(
                   (view) => MobileViewItem(
                     key: ValueKey(
-                      '${FolderCategoryType.favorite.name} ${view.id}',
+                      '${FolderSpaceType.favorite.name} ${view.id}',
                     ),
-                    categoryType: FolderCategoryType.favorite,
+                    spaceType: FolderSpaceType.favorite,
                     isDraggable: false,
                     isFirstChild: view.id == views.first.id,
                     isFeedback: false,
                     view: view,
                     level: 0,
-                    onSelected: (view) async {
-                      await context.pushView(view);
-                    },
-                    endActionPane: (context) => buildEndActionPane(context, [
-                      view.isFavorite
-                          ? MobilePaneActionType.removeFromFavorites
-                          : MobilePaneActionType.addToFavorites,
-                      MobilePaneActionType.more,
-                    ]),
+                    onSelected: context.pushView,
+                    endActionPane: (context) => buildEndActionPane(
+                      context,
+                      [
+                        view.isFavorite
+                            ? MobilePaneActionType.removeFromFavorites
+                            : MobilePaneActionType.addToFavorites,
+                        MobilePaneActionType.more,
+                      ],
+                      spaceType: FolderSpaceType.favorite,
+                    ),
                   ),
                 ),
             ],

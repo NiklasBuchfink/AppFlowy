@@ -10,11 +10,10 @@ import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/af_cloud_mock_auth_service.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/settings/prelude.dart';
-import 'package:appflowy/workspace/presentation/home/menu/sidebar/sidebar_workspace.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_actions.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_menu.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/sidebar_workspace.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/setting_appflowy_cloud.dart';
-import 'package:appflowy/workspace/presentation/settings/widgets/settings_user_view.dart';
 import 'package:appflowy/workspace/presentation/widgets/user_avatar.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -60,9 +59,12 @@ void main() {
 
       Finder success;
 
+      final Finder items = find.byType(WorkspaceMenuItem);
+
       // delete the newly created workspace
       await tester.openCollaborativeWorkspaceMenu();
-      final Finder items = find.byType(WorkspaceMenuItem);
+      await tester.pumpUntilFound(items);
+
       expect(items, findsNWidgets(2));
       expect(
         tester.widget<WorkspaceMenuItem>(items.last).workspace.name,

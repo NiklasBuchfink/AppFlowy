@@ -1,9 +1,12 @@
 use client_api::ClientConfiguration;
+use semver::Version;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use flowy_error::FlowyResult;
 use uuid::Uuid;
 
+use flowy_server::af_cloud::define::ServerUser;
 use flowy_server::af_cloud::AppFlowyCloudServer;
 use flowy_server::supabase::define::{USER_DEVICE_ID, USER_SIGN_IN_URL};
 use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
@@ -30,8 +33,16 @@ pub fn af_cloud_server(config: AFCloudConfiguration) -> Arc<AppFlowyCloudServer>
     config,
     true,
     fake_device_id,
-    "0.5.1",
+    Version::new(0, 5, 8),
+    Arc::new(FakeServerUserImpl),
   ))
+}
+
+struct FakeServerUserImpl;
+impl ServerUser for FakeServerUserImpl {
+  fn workspace_id(&self) -> FlowyResult<String> {
+    todo!()
+  }
 }
 
 pub async fn generate_sign_in_url(user_email: &str, config: &AFCloudConfiguration) -> String {

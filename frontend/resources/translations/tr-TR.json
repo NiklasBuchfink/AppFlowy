@@ -46,11 +46,15 @@
     "unmatchedPasswordError": "Parola tekrarı girmiş olduğunuz parola ile aynı değil",
     "syncPromptMessage": "Veriler senkronize ediliyor, lütfen bu sayfayı kapatmayın",
     "or": "VEYA",
+    "signInWith": "Şununla giriş yapın:",
+    "signInWithEmail": "E-posta ile giriş yap",
+    "pleaseInputYourEmail": "Lütfen e-posta adresinizi girin",
+    "magicLinkSent": "Sihirli bağlantı e-postanıza gönderildi, lütfen gelen kutunuzu kontrol edin",
+    "invalidEmail": "Lütfen geçerli bir e-posta adresi girin",
     "LogInWithGoogle": "Google ile Giriş Yap",
     "LogInWithGithub": "Github ile Giriş Yap",
     "LogInWithDiscord": "Discord ile Giriş Yap",
-    "signInWith": "Şununla giriş yapın:",
-    "signInWithEmail": "E-posta ile giriş yap"
+    "logInWithMagicLink": "Sihirli Bağlantı ile Giriş Yap"
   },
   "workspace": {
     "chooseWorkspace": "Çalışma Alanınızı Seçin",
@@ -59,7 +63,7 @@
     "resetWorkspacePrompt": "Çalışma alanını sıfırlamak, içindeki tüm sayfaları ve verileri silecektir. Çalışma alanını sıfırlamak istediğinizden emin misiniz? Alternatif olarak, çalışma alanını geri yüklemek için destek ekibiyle iletişime geçebilirsiniz",
     "hint": "çalışma alanı",
     "notFoundError": "Çalışma alanı bulunamadı",
-    "failedToLoad": "Bir şeyler yanlış gitti! Çalışma alanı yüklenemedi. Açık olan tüm AppFlowy örneklerini kapatıp tekrar deneyin.",
+    "failedToLoad": "Bir şeyler yanlış gitti! Çalışma alanı yüklenemedi. Açık olan tüm @:appName örneklerini kapatıp tekrar deneyin.",
     "errorActions": {
       "reportIssue": "Sorun bildir",
       "reportIssueOnGithub": "GitHub'da sorun bildir",
@@ -88,6 +92,8 @@
     "buttonText": "Paylaş",
     "workInProgress": "Yakında geliyor",
     "markdown": "Markdown",
+    "html": "HTML",
+    "clipboard": "Panoya kopyala",
     "csv": "CSV",
     "copyLink": "Bağlantıyı Kopyala"
   },
@@ -324,8 +330,8 @@
       "cloudSupabaseUrlCanNotBeEmpty": "Supabase url'si boş olamaz",
       "cloudSupabaseAnonKey": "Supabase anonim anahtarı",
       "cloudSupabaseAnonKeyCanNotBeEmpty": "Anonim anahtar boş olamaz",
-      "cloudAppFlowy": "AppFlowy Bulutu Beta",
-      "cloudAppFlowySelfHost": "AppFlowy Bulutu Kendi Sunucunuzda",
+      "cloudAppFlowy": "@:appName Bulutu Beta",
+      "cloudAppFlowySelfHost": "@:appName Bulutu Kendi Sunucunuzda",
       "appFlowyCloudUrlCanNotBeEmpty": "Bulut url'si boş olamaz",
       "clickToCopy": "Kopyalamak için tıklayın",
       "selfHostStart": "Bir sunucunuz yoksa, lütfen",
@@ -346,12 +352,12 @@
       "historicalUserList": "Kullanıcı giriş geçmişi",
       "historicalUserListTooltip": "Bu liste anonim hesaplarınızı görüntüler. Ayrıntılarını görüntülemek için bir hesaba tıklayabilirsiniz. Anonim hesaplar 'Başlayın' düğmesine tıklanarak oluşturulur",
       "openHistoricalUser": "Anonim hesabı açmak için tıklayın",
-      "customPathPrompt": "AppFlowy veri klasörünü Google Drive gibi bulutla senkronize edilmiş bir klasörde saklamak risk oluşturabilir. Bu klasördeki veritabanına aynı anda birden fazla konumdan erişilir veya değiştirilirse, senkronizasyon çakışmaları ve olası veri bozulmasıyla sonuçlanabilir",
-      "importAppFlowyData": "Harici AppFlowy Klasöründen Veri Al",
+      "customPathPrompt": "@:appName veri klasörünü Google Drive gibi bulutla senkronize edilmiş bir klasörde saklamak risk oluşturabilir. Bu klasördeki veritabanına aynı anda birden fazla konumdan erişilir veya değiştirilirse, senkronizasyon çakışmaları ve olası veri bozulmasıyla sonuçlanabilir",
+      "importAppFlowyData": "Harici @:appName Klasöründen Veri Al",
       "importingAppFlowyDataTip": "Veri aktarımı devam ediyor. Lütfen uygulamayı kapatmayın",
-      "importAppFlowyDataDescription": "Harici bir AppFlowy veri klasöründen veri kopyalayın ve geçerli AppFlowy veri klasörüne aktarın",
-      "importSuccess": "AppFlowy veri klasörü başarıyla alındı",
-      "importFailed": "AppFlowy veri klasörü alınamadı",
+      "importAppFlowyDataDescription": "Harici bir @:appName veri klasöründen veri kopyalayın ve geçerli @:appName veri klasörüne aktarın",
+      "importSuccess": "@:appName veri klasörü başarıyla alındı",
+      "importFailed": "@:appName veri klasörü alınamadı",
       "importGuide": "Daha fazla bilgi için lütfen referans belgeyi kontrol edin"
     },
     "notifications": {
@@ -402,7 +408,7 @@
       "themeUpload": {
         "button": "Yükle",
         "uploadTheme": "Temayı yükle",
-        "description": "Aşağıdaki düğmeyi kullanarak kendi AppFlowy temanızı yükleyin.",
+        "description": "Aşağıdaki düğmeyi kullanarak kendi @:appName temanızı yükleyin.",
         "loading": "Lütfen temanızı doğrularken ve yüklerken bekleyin...",
         "uploadSuccess": "Temanız başarıyla yüklendi",
         "deletionFailure": "Temayı silinemedi. Manuel olarak silmeyi deneyin.",
@@ -461,7 +467,7 @@
       "defaultLocation": "Dosyaları ve verileri okuma konumu",
       "exportData": "Verilerinizi dışa aktarın",
       "doubleTapToCopy": "Yolu kopyalamak için iki kez dokunun",
-      "restoreLocation": "AppFlowy varsayılan yoluna geri yükle",
+      "restoreLocation": "@:appName varsayılan yoluna geri yükle",
       "customizeLocation": "Başka bir klasör aç",
       "restartApp": "Değişikliklerin etkili olması için lütfen uygulamayı yeniden başlatın.",
       "exportDatabase": "Veritabanını dışa aktar",
@@ -473,10 +479,10 @@
       "defineWhereYourDataIsStored": "Verilerinizin nerede saklandığını tanımlayın",
       "open": "Aç",
       "openFolder": "Mevcut bir klasörü aç",
-      "openFolderDesc": "Mevcut AppFlowy klasörünüze okuyun ve yazın",
+      "openFolderDesc": "Mevcut @:appName klasörünüze okuyun ve yazın",
       "folderHintText": "klasör adı",
       "location": "Yeni bir klasör oluşturuluyor",
-      "locationDesc": "AppFlowy veri klasörünüz için bir ad seçin",
+      "locationDesc": "@:appName veri klasörünüz için bir ad seçin",
       "browser": "Gözat",
       "create": "Oluştur",
       "set": "Ayarla",
@@ -487,7 +493,7 @@
       "change": "Değiştir",
       "openLocationTooltips": "Başka bir veri dizini aç",
       "openCurrentDataFolder": "Geçerli veri dizinini aç",
-      "recoverLocationTooltips": "AppFlowy'nin varsayılan veri dizinine sıfırla",
+      "recoverLocationTooltips": "@:appName'nin varsayılan veri dizinine sıfırla",
       "exportFileSuccess": "Dosya başarıyla dışa aktarıldı!",
       "exportFileFail": "Dosya dışa aktarılamadı!",
       "export": "Dışa Aktar",
@@ -517,6 +523,8 @@
       "couldNotSaveErrorMsg": "Kısayollar kaydedilemedi, tekrar deneyin",
       "commands": {
         "codeBlockNewParagraph": "Kod bloğunun yanına yeni bir paragraf ekle",
+        "codeBlockIndentLines": "Tablonuzdaki kod bloğunda satır başında iki boşluk ekleyin",
+        "codeBlockOutdentLines": "Kod bloğundaki satır başındaki iki boşluğu silin",
         "codeBlockAddTwoSpaces": "Kod bloğunda satır başına iki boşluk ekle",
         "codeBlockSelectAll": "Kod bloğunun içindeki tüm içeriği seç",
         "codeBlockPasteText": "Kod bloğuna metin yapıştır",
@@ -595,7 +603,10 @@
     },
     "checkboxFilter": {
       "isChecked": "İşaretli",
-      "isUnchecked": "İşaretsiz"
+      "isUnchecked": "İşaretsiz",
+      "choicechipPrefix": {
+        "is": "durum"
+      }
     },
     "checklistFilter": {
       "isComplete": "tamamlandı",
@@ -689,7 +700,8 @@
       "newColumn": "Yeni Sütun",
       "format": "Format",
       "reminderOnDateTooltip": "Bu hücrenin planlanmış bir hatırlatıcısı var",
-      "optionAlreadyExist": "Seçenek zaten mevcut"
+      "optionAlreadyExist": "Seçenek zaten mevcut",
+      "wrap": "Sar"
     },
     "rowPage": {
       "newField": "Yeni bir alan ekle",
@@ -738,7 +750,7 @@
       "lightPinkColor": "Açık Pembe",
       "orangeColor": "Turuncu",
       "yellowColor": "Sarı",
-      "limeColor": "Yeşil",
+      "limeColor": "Limoni",
       "greenColor": "Yeşil",
       "aquaColor": "Su yeşili",
       "blueColor": "Mavi",
@@ -771,7 +783,9 @@
       "inRelatedDatabase": "İçinde",
       "rowSearchTextFieldPlaceholder": "Ara",
       "noDatabaseSelected": "Veritabanı seçilmedi, lütfen önce aşağıdaki listeden bir tane seçin:",
-      "emptySearchResult": "Kayıt bulunamadı"
+      "emptySearchResult": "Kayıt bulunamadı",
+      "linkedRowListLabel": "{count} bağlı satır",
+      "unlinkedRowListLabel": "Başka bir satırı bağla"
     },
     "menuName": "Tablo",
     "referencedGridPrefix": "Görünümü",
@@ -989,8 +1003,12 @@
     "codeBlock": {
       "language": {
         "label": "Dil",
-        "placeholder": "Dil seçin"
-      }
+        "placeholder": "Dil seçin",
+        "auto": "Otomatik"
+      },
+      "copyTooltip": "Kod bloğunun içeriğini kopyala",
+      "searchLanguageHint": "Bir dil arayın",
+      "codeCopiedSnackbar": "Kod panoya kopyalandı!"
     },
     "inlineLink": {
       "placeholder": "Bir bağlantıyı yapıştırın veya yazın",
@@ -1098,7 +1116,7 @@
     "duplicateEvent": "Etkinliği kopyala"
   },
   "errorDialog": {
-    "title": "AppFlowy Hatası",
+    "title": "@:appName Hatası",
     "howToFixFallback": "Verdiğimiz rahatsızlıktan dolayı özür dileriz! Lütfen GitHub sayfamızda hatanızı açıklayan bir sorun bildirin.",
     "github": "GitHub'da Görüntüle"
   },
@@ -1312,7 +1330,7 @@
     "lightLightTint3": "Açık Pembe",
     "lightLightTint4": "Turuncu",
     "lightLightTint5": "Sarı",
-    "lightLightTint6": "Yeşil",
+    "lightLightTint6": "Limoni",
     "lightLightTint7": "Yeşil",
     "lightLightTint8": "Su yeşili",
     "lightLightTint9": "Mavi",
@@ -1448,5 +1466,15 @@
       "synced": "Senkronize edildi",
       "noNetworkConnected": "Ağ bağlantısı yok"
     }
+  },
+  "commandPalette": {
+    "placeholder": "Görünümleri aramak için yazın...",
+    "bestMatches": "En iyi eşleşmeler",
+    "recentHistory": "Son geçmiş",
+    "navigateHint": "gezinmek için",
+    "loadingTooltip": "Sonuçlar aranıyor...",
+    "betaLabel": "BETA",
+    "betaTooltip": "Şu anda yalnızca sayfaları aramayı destekliyoruz",
+    "fromTrashHint": "Çöp kutusundan"
   }
 }

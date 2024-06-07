@@ -17,19 +17,19 @@ hyper = "0.14"
 serde.workspace = true
 serde_json.workspace = true
 thiserror = "1.0"
-tokio = { workspace = true, features = ["sync"]}
+tokio = { workspace = true, features = ["sync"] }
 parking_lot.workspace = true
 lazy_static = "1.4.0"
 bytes = { workspace = true, features = ["serde"] }
 tokio-retry = "0.3"
 anyhow.workspace = true
 uuid.workspace = true
-chrono = { workspace = true,  default-features = false, features = ["clock", "serde"] }
-collab = { version = "0.1.0" }
-collab-plugins = { version = "0.1.0"}
-collab-document = { version = "0.1.0" }
-collab-entity = { version = "0.1.0" }
-collab-folder = { version = "0.1.0" }
+chrono = { workspace = true, default-features = false, features = ["clock", "serde"] }
+collab = { workspace = true }
+collab-plugins = { workspace = true }
+collab-document = { workspace = true }
+collab-entity = { workspace = true }
+collab-folder = { workspace = true }
 hex = "0.4.3"
 postgrest = "1.0"
 lib-infra = { workspace = true }
@@ -41,6 +41,7 @@ flowy-error = { workspace = true, features = ["impl_from_serde", "impl_from_reqw
 flowy-server-pub = { workspace = true }
 flowy-encrypt = { workspace = true }
 flowy-storage = { workspace = true }
+flowy-chat-pub = { workspace = true }
 mime_guess = "2.0"
 url = "2.4"
 tokio-util = "0.7"
@@ -48,10 +49,10 @@ tokio-stream = { workspace = true, features = ["sync"] }
 lib-dispatch = { workspace = true }
 yrs.workspace = true
 rand = "0.8.5"
-
+semver = "1.0.23"
 
 [dependencies.client-api]
-version = "0.1.0"
+workspace = true
 features = [
     "collab-sync",
     "test_util",

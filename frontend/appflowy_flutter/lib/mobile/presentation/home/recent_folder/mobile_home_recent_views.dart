@@ -7,6 +7,7 @@ import 'package:appflowy/workspace/application/recent/prelude.dart';
 import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -23,21 +24,22 @@ class _MobileRecentFolderState extends State<MobileRecentFolder> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => RecentViewsBloc()
-        ..add(
-          const RecentViewsEvent.initial(),
-        ),
+      create: (context) =>
+          RecentViewsBloc()..add(const RecentViewsEvent.initial()),
       child: BlocListener<UserWorkspaceBloc, UserWorkspaceState>(
-        listener: (context, state) {
-          context.read<RecentViewsBloc>().add(
-                const RecentViewsEvent.fetchRecentViews(),
-              );
-        },
+        listenWhen: (previous, current) =>
+            current.currentWorkspace != null &&
+            previous.currentWorkspace?.workspaceId !=
+                current.currentWorkspace!.workspaceId,
+        listener: (context, state) => context
+            .read<RecentViewsBloc>()
+            .add(const RecentViewsEvent.resetRecentViews()),
         child: BlocBuilder<RecentViewsBloc, RecentViewsState>(
           builder: (context, state) {
             final ids = <String>{};
 
-            List<ViewPB> recentViews = state.views.reversed.toList();
+            List<ViewPB> recentViews =
+                state.views.reversed.map((e) => e.item).toList();
             recentViews.retainWhere((element) => ids.add(element.id));
 
             // only keep the first 20 items.
@@ -90,7 +92,7 @@ class _RecentViews extends StatelessWidget {
                 context,
                 showDivider: false,
                 showDragHandle: true,
-                backgroundColor: Theme.of(context).colorScheme.background,
+                backgroundColor: AFThemeExtension.of(context).background,
                 builder: (_) {
                   return Column(
                     children: [

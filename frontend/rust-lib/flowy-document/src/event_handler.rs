@@ -56,6 +56,8 @@ pub(crate) async fn open_document_handler(
   let manager = upgrade_document(manager)?;
   let params: OpenDocumentParams = data.into_inner().try_into()?;
   let doc_id = params.document_id;
+  manager.open_document(&doc_id).await?;
+
   let document = manager.get_document(&doc_id).await?;
   let document_data = document.lock().get_document_data()?;
   data_result_ok(DocumentDataPB::from(document_data))
@@ -95,6 +97,9 @@ pub(crate) async fn apply_action_handler(
   let doc_id = params.document_id;
   let document = manager.get_document(&doc_id).await?;
   let actions = params.actions;
+  if cfg!(feature = "verbose_log") {
+    tracing::trace!("{} applying actions: {:?}", doc_id, actions);
+  }
   document.lock().apply_action(actions);
   Ok(())
 }
@@ -125,6 +130,9 @@ pub(crate) async fn apply_text_delta_handler(
   let text_id = params.text_id;
   let delta = params.delta;
   let document = document.lock();
+  if cfg!(feature = "verbose_log") {
+    tracing::trace!("{} applying delta: {:?}", doc_id, delta);
+  }
   document.apply_text_delta(&text_id, delta);
   Ok(())
 }

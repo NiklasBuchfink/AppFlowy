@@ -8,6 +8,7 @@ import 'package:appflowy/plugins/database/calendar/application/calendar_bloc.dar
 import 'package:appflowy/plugins/database/calendar/application/unschedule_event_bloc.dart';
 import 'package:appflowy/plugins/database/grid/presentation/layout/sizes.dart';
 import 'package:appflowy/plugins/database/tab_bar/tab_bar_view.dart';
+import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/calendar_entities.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -187,7 +188,8 @@ class _CalendarPageState extends State<CalendarPage> {
         return Padding(
           padding: PlatformExtension.isMobile
               ? CalendarSize.contentInsetsMobile
-              : CalendarSize.contentInsets,
+              : CalendarSize.contentInsets +
+                  const EdgeInsets.symmetric(horizontal: 40),
           child: ScrollConfiguration(
             behavior:
                 ScrollConfiguration.of(context).copyWith(scrollbars: false),
@@ -263,6 +265,7 @@ class _CalendarPageState extends State<CalendarPage> {
             fillColor: Colors.transparent,
             fontWeight: FontWeight.w400,
             fontSize: 10,
+            fontColor: AFThemeExtension.of(context).textColor,
             tooltip: LocaleKeys.calendar_navigation_jumpToday.tr(),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             hoverColor: AFThemeExtension.of(context).lightGreyHover,
@@ -353,9 +356,12 @@ void showEventDetails({
   FlowyOverlay.show(
     context: context,
     builder: (BuildContext overlayContext) {
-      return RowDetailPage(
-        rowController: rowController,
-        databaseController: databaseController,
+      return BlocProvider.value(
+        value: context.read<ViewBloc>(),
+        child: RowDetailPage(
+          rowController: rowController,
+          databaseController: databaseController,
+        ),
       );
     },
   );
@@ -424,10 +430,13 @@ class _UnscheduledEventsButtonState extends State<UnscheduledEventsButton> {
                 ),
               ),
             ),
-            popupBuilder: (context) {
-              return UnscheduleEventsList(
-                databaseController: widget.databaseController,
-                unscheduleEvents: state.unscheduleEvents,
+            popupBuilder: (_) {
+              return BlocProvider.value(
+                value: context.read<ViewBloc>(),
+                child: UnscheduleEventsList(
+                  databaseController: widget.databaseController,
+                  unscheduleEvents: state.unscheduleEvents,
+                ),
               );
             },
           );

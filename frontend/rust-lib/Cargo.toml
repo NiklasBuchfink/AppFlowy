@@ -6,7 +6,7 @@ members = [
     "dart-ffi",
     "flowy-user",
     "flowy-user-pub",
-    "event-integration",
+    "event-integration-test",
     "flowy-sqlite",
     "flowy-folder",
     "flowy-folder-pub",
@@ -22,7 +22,6 @@ members = [
     "flowy-encrypt",
     "flowy-storage",
     "collab-integrate",
-    "flowy-ai",
     "flowy-date",
     "flowy-search",
     "lib-infra",
@@ -30,6 +29,7 @@ members = [
     "build-tool/flowy-codegen",
     "build-tool/flowy-derive",
     "flowy-search-pub",
+    "flowy-chat", "flowy-chat-pub",
 ]
 resolver = "2"
 
@@ -61,15 +61,16 @@ flowy-storage = { workspace = true, path = "flowy-storage" }
 flowy-search = { workspace = true, path = "flowy-search" }
 flowy-search-pub = { workspace = true, path = "flowy-search-pub" }
 collab-integrate = { workspace = true, path = "collab-integrate" }
-flowy-ai = { workspace = true, path = "flowy-ai" }
 flowy-date = { workspace = true, path = "flowy-date" }
+flowy-chat = { workspace = true, path = "flowy-chat" }
+flowy-chat-pub = { workspace = true, path = "flowy-chat-pub" }
 anyhow = "1.0"
 tracing = "0.1.40"
 bytes = "1.5.0"
 serde_json = "1.0.108"
 serde = "1.0.194"
 protobuf = { version = "2.28.0" }
-diesel = { version = "2.1.0", features = ["sqlite", "chrono", "r2d2"] }
+diesel = { version = "2.1.0", features = ["sqlite", "chrono", "r2d2", "serde_json"] }
 uuid = { version = "1.5.0", features = ["serde", "v4", "v5"] }
 serde_repr = "0.1"
 parking_lot = "0.12"
@@ -78,12 +79,27 @@ tokio = "1.34.0"
 tokio-stream = "0.1.14"
 async-trait = "0.1.74"
 chrono = { version = "0.4.31", default-features = false, features = ["clock"] }
-yrs = { version = "0.17.2" }
+collab = { version = "0.2" }
+collab-entity = { version = "0.2" }
+collab-folder = { version = "0.2" }
+collab-document = { version = "0.2" }
+collab-database = { version = "0.2" }
+collab-plugins = { version = "0.2" }
+collab-user = { version = "0.2" }
+yrs = "0.18.8"
+
+# Please using the following command to update the revision id
+# Current directory: frontend
+# Run the script.add_workspace_members:
+# scripts/tool/update_client_api_rev.sh  new_rev_id
+# ⚠️⚠️⚠️️
+client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "3f55cea9ca386875a1668ef30600c83cd6a1ffe2" }
 
 [profile.dev]
-opt-level = 0
+opt-level = 1
 lto = false
 codegen-units = 16
+debug = true
 
 [profile.release]
 lto = true
@@ -104,18 +120,9 @@ lto = false
 incremental = false
 
 [patch.crates-io]
-yrs = { git = "https://github.com/appflowy/y-crdt", rev = "3f25bb510ca5274e7657d3713fbed41fb46b4487" }
-
 # TODO(Lucas.Xu) Upgrade to the latest version of RocksDB once PR(https://github.com/rust-rocksdb/rust-rocksdb/pull/869) is merged.
 # Currently, using the following revision id. This commit is patched to fix the 32-bit build issue and it's checked out from 0.21.0, not 0.22.0.
 rocksdb = { git = "https://github.com/LucasXu0/rust-rocksdb", rev = "21cf4a23ec131b9d82dc94e178fe8efc0c147b09" }
-
-# Please using the following command to update the revision id
-# Current directory: frontend
-# Run the script.add_workspace_members:
-# scripts/tool/update_client_api_rev.sh  new_rev_id
-# ⚠️⚠️⚠️️
-client-api = { git = " https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "ca70c426311fc6fb87ecccfa66e3927b36e96795" }
 # Please use the following script to update collab.
 # Working directory: frontend
 #
@@ -125,10 +132,10 @@ client-api = { git = " https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "ca
 # To switch to the local path, run:
 # scripts/tool/update_collab_source.sh
 # ⚠️⚠️⚠️️
-collab = { git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "5e32057ac8e6939368a8e75df91bcbce2ac143e7" }
-collab-folder = { git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "5e32057ac8e6939368a8e75df91bcbce2ac143e7" }
-collab-document = { git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "5e32057ac8e6939368a8e75df91bcbce2ac143e7" }
-collab-database = { git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "5e32057ac8e6939368a8e75df91bcbce2ac143e7" }
-collab-plugins = { git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "5e32057ac8e6939368a8e75df91bcbce2ac143e7" }
-collab-user = { git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "5e32057ac8e6939368a8e75df91bcbce2ac143e7" }
-collab-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "5e32057ac8e6939368a8e75df91bcbce2ac143e7" }
+collab = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "6febf0397e66ebf0a281980a2e7602d7af00c975" }
+collab-entity = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "6febf0397e66ebf0a281980a2e7602d7af00c975" }
+collab-folder = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "6febf0397e66ebf0a281980a2e7602d7af00c975" }
+collab-document = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "6febf0397e66ebf0a281980a2e7602d7af00c975" }
+collab-database = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "6febf0397e66ebf0a281980a2e7602d7af00c975" }
+collab-plugins = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "6febf0397e66ebf0a281980a2e7602d7af00c975" }
+collab-user = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "6febf0397e66ebf0a281980a2e7602d7af00c975" }

@@ -6,12 +6,14 @@ import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/widgets/widgets.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/settings/cloud_setting_bloc.dart';
+import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/setting_local_cloud.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_popover/appflowy_popover.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -37,7 +39,8 @@ class SettingCloud extends StatelessWidget {
             create: (context) => CloudSettingBloc(cloudType),
             child: BlocBuilder<CloudSettingBloc, CloudSettingState>(
               builder: (context, state) {
-                return Column(
+                return SettingsBody(
+                  title: LocaleKeys.settings_menu_cloudSettings.tr(),
                   children: [
                     if (Env.enableCustomCloud)
                       Row(
@@ -49,17 +52,12 @@ class SettingCloud extends StatelessWidget {
                           ),
                           CloudTypeSwitcher(
                             cloudType: state.cloudType,
-                            onSelected: (newCloudType) {
-                              context.read<CloudSettingBloc>().add(
-                                    CloudSettingEvent.updateCloudType(
-                                      newCloudType,
-                                    ),
-                                  );
-                            },
+                            onSelected: (type) => context
+                                .read<CloudSettingBloc>()
+                                .add(CloudSettingEvent.updateCloudType(type)),
                           ),
                         ],
                       ),
-                    const VSpace(8),
                     _viewFromCloudType(state.cloudType),
                   ],
                 );
@@ -67,9 +65,7 @@ class SettingCloud extends StatelessWidget {
             ),
           );
         } else {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
       },
     );
@@ -131,7 +127,7 @@ class CloudTypeSwitcher extends StatelessWidget {
             child: FlowyTextButton(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               titleFromCloudType(cloudType),
-              fontColor: Theme.of(context).colorScheme.onBackground,
+              fontColor: AFThemeExtension.of(context).onBackground,
               fillColor: Colors.transparent,
               onPressed: () {},
             ),
@@ -163,7 +159,6 @@ class CloudTypeSwitcher extends StatelessWidget {
                 showHeader: true,
                 showDragHandle: true,
                 showDivider: false,
-                showCloseButton: false,
                 title: LocaleKeys.settings_menu_cloudServerType.tr(),
                 builder: (context) {
                   return Column(

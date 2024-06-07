@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:appflowy_editor_plugins/appflowy_editor_plugins.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
+
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/env/cloud_env_test.dart';
 import 'package:appflowy/startup/entry_point.dart';
@@ -13,16 +17,12 @@ import 'package:appflowy/user/presentation/screens/sign_in_screen/widgets/widget
 import 'package:appflowy/workspace/application/settings/prelude.dart';
 import 'package:flowy_infra/uuid.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 class FlowyTestContext {
-  FlowyTestContext({
-    required this.applicationDataDirectory,
-  });
+  FlowyTestContext({required this.applicationDataDirectory});
 
   final String applicationDataDirectory;
 }
@@ -37,6 +37,8 @@ extension AppFlowyTestBase on WidgetTester {
     AuthenticatorType? cloudType,
     String? email,
   }) async {
+    VideoBlockKit.ensureInitialized();
+
     if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
       // Set the window size
       await binding.setSurfaceSize(windowSize);
@@ -75,7 +77,7 @@ extension AppFlowyTestBase on WidgetTester {
             if (cloudType != null) {
               switch (cloudType) {
                 case AuthenticatorType.local:
-                  await useLocal();
+                  await useLocalServer();
                   break;
                 case AuthenticatorType.supabase:
                   await useTestSupabaseCloud();
@@ -174,28 +176,29 @@ extension AppFlowyTestBase on WidgetTester {
     int buttons = kPrimaryButton,
     bool warnIfMissed = false,
     int milliseconds = 500,
+    bool pumpAndSettle = true,
   }) async {
     await tap(
       finder,
       buttons: buttons,
       warnIfMissed: warnIfMissed,
     );
-    await pumpAndSettle(
-      Duration(milliseconds: milliseconds),
-      EnginePhase.sendSemanticsUpdate,
-      const Duration(seconds: 5),
-    );
+
+    if (pumpAndSettle) {
+      await this.pumpAndSettle(
+        Duration(milliseconds: milliseconds),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 5),
+      );
+    }
   }
 
   Future<void> tapButtonWithName(
     String tr, {
     int milliseconds = 500,
+    bool pumpAndSettle = true,
   }) async {
-    Finder button = find.text(
-      tr,
-      findRichText: true,
-      skipOffstage: false,
-    );
+    Finder button = find.text(tr, findRichText: true, skipOffstage: false);
     if (button.evaluate().isEmpty) {
       button = find.byWidgetPredicate(
         (widget) => widget is FlowyText && widget.text == tr,
@@ -204,20 +207,8 @@ extension AppFlowyTestBase on WidgetTester {
     await tapButton(
       button,
       milliseconds: milliseconds,
+      pumpAndSettle: pumpAndSettle,
     );
-    return;
-  }
-
-  Future<void> tapButtonWithTooltip(
-    String tr, {
-    int milliseconds = 500,
-  }) async {
-    final button = find.byTooltip(tr);
-    await tapButton(
-      button,
-      milliseconds: milliseconds,
-    );
-    return;
   }
 
   Future<void> doubleTapAt(
@@ -232,34 +223,8 @@ extension AppFlowyTestBase on WidgetTester {
     await pumpAndSettle(Duration(milliseconds: milliseconds));
   }
 
-  Future<void> doubleTapButton(
-    Finder finder, {
-    int? pointer,
-    int buttons = kPrimaryButton,
-    bool warnIfMissed = true,
-    int milliseconds = 500,
-  }) async {
-    await tap(
-      finder,
-      pointer: pointer,
-      buttons: buttons,
-      warnIfMissed: warnIfMissed,
-    );
-
-    await pump(kDoubleTapMinTime);
-
-    await tap(
-      finder,
-      buttons: buttons,
-      pointer: pointer,
-      warnIfMissed: warnIfMissed,
-    );
-    await pumpAndSettle(Duration(milliseconds: milliseconds));
-  }
-
   Future<void> wait(int milliseconds) async {
     await pumpAndSettle(Duration(milliseconds: milliseconds));
-    return;
   }
 }
 
@@ -269,10 +234,6 @@ extension AppFlowyFinderTestBase on CommonFinders {
       (widget) => widget is FlowyText && widget.text == text,
     );
   }
-}
-
-Future<void> useLocal() async {
-  await useLocalServer();
 }
 
 Future<void> useTestSupabaseCloud() async {

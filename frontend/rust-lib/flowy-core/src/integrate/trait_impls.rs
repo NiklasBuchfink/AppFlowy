@@ -3,18 +3,25 @@ use std::sync::Arc;
 
 use anyhow::Error;
 use client_api::collab_sync::{SinkConfig, SyncObject, SyncPlugin};
-
+use client_api::entity::ai_dto::RepeatedRelatedQuestion;
+use client_api::entity::ChatMessageType;
 use collab::core::origin::{CollabClient, CollabOrigin};
+
 use collab::preclude::CollabPlugin;
 use collab_entity::CollabType;
 use collab_plugins::cloud_storage::postgres::SupabaseDBPlugin;
 use tokio_stream::wrappers::WatchStream;
-use tracing::{debug, instrument};
+use tracing::debug;
 
 use collab_integrate::collab_builder::{
   CollabCloudPluginProvider, CollabPluginProviderContext, CollabPluginProviderType,
 };
-use flowy_database_pub::cloud::{CollabDocStateByOid, DatabaseCloudService, DatabaseSnapshot};
+use flowy_chat_pub::cloud::{
+  ChatCloudService, ChatMessage, ChatMessageStream, MessageCursor, RepeatedChatMessage,
+};
+use flowy_database_pub::cloud::{
+  CollabDocStateByOid, DatabaseCloudService, DatabaseSnapshot, SummaryRowContent,
+};
 use flowy_document::deps::DocumentData;
 use flowy_document_pub::cloud::{DocumentCloudService, DocumentSnapshot};
 use flowy_error::FlowyError;
@@ -26,6 +33,7 @@ use flowy_server_pub::supabase_config::SupabaseConfiguration;
 use flowy_storage::ObjectValue;
 use flowy_user_pub::cloud::{UserCloudService, UserCloudServiceProvider};
 use flowy_user_pub::entities::{Authenticator, UserTokenState};
+use lib_infra::async_trait::async_trait;
 use lib_infra::future::FutureResult;
 
 use crate::integrate::server::{Server, ServerProvider};
@@ -267,6 +275,23 @@ impl DatabaseCloudService for ServerProvider {
         .await
     })
   }
+
+  fn summary_database_row(
+    &self,
+    workspace_id: &str,
+    object_id: &str,
+    summary_row: SummaryRowContent,
+  ) -> FutureResult<String, Error> {
+    let workspace_id = workspace_id.to_string();
+    let server = self.get_server();
+    let object_id = object_id.to_string();
+    FutureResult::new(async move {
+      server?
+        .database_service()
+        .summary_database_row(&workspace_id, &object_id, summary_row)
+        .await
+    })
+  }
 }
 
 impl DocumentCloudService for ServerProvider {
@@ -325,7 +350,6 @@ impl CollabCloudPluginProvider for ServerProvider {
     self.get_server_type().into()
   }
 
-  #[instrument(level = "debug", skip(self, context), fields(server_type = %self.get_server_type()))]
   fn get_plugins(&self, context: CollabPluginProviderContext) -> Vec<Box<dyn CollabPlugin>> {
     // If the user is local, we don't need to create a sync plugin.
     if self.get_server_type().is_local() {
@@ -354,7 +378,12 @@ impl CollabCloudPluginProvider for ServerProvider {
                 collab_object.uid,
                 collab_object.device_id.clone(),
               ));
-              let sync_object = SyncObject::from(collab_object);
+              let sync_object = SyncObject::new(
+                &collab_object.object_id,
+                &collab_object.workspace_id,
+                collab_object.collab_type,
+                &collab_object.device_id,
+              );
               let (sink, stream) = (channel.sink(), channel.stream());
               let sink_config = SinkConfig::new().send_timeout(8);
               let sync_plugin = SyncPlugin::new(
@@ -407,5 +436,95 @@ impl CollabCloudPluginProvider for ServerProvider {
 
   fn is_sync_enabled(&self) -> bool {
     *self.user_enable_sync.read()
+  }
+}
+
+#[async_trait]
+impl ChatCloudService for ServerProvider {
+  fn create_chat(
+    &self,
+    uid: &i64,
+    workspace_id: &str,
+    chat_id: &str,
+  ) -> FutureResult<(), FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let server = self.get_server();
+    let chat_id = chat_id.to_string();
+    let uid = *uid;
+    FutureResult::new(async move {
+      server?
+        .chat_service()
+        .create_chat(&uid, &workspace_id, &chat_id)
+        .await
+    })
+  }
+
+  async fn send_chat_message(
+    &self,
+    workspace_id: &str,
+    chat_id: &str,
+    message: &str,
+    message_type: ChatMessageType,
+  ) -> Result<ChatMessageStream, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let chat_id = chat_id.to_string();
+    let message = message.to_string();
+    let server = self.get_server()?;
+    server
+      .chat_service()
+      .send_chat_message(&workspace_id, &chat_id, &message, message_type)
+      .await
+  }
+
+  fn get_chat_messages(
+    &self,
+    workspace_id: &str,
+    chat_id: &str,
+    offset: MessageCursor,
+    limit: u64,
+  ) -> FutureResult<RepeatedChatMessage, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let chat_id = chat_id.to_string();
+    let server = self.get_server();
+    FutureResult::new(async move {
+      server?
+        .chat_service()
+        .get_chat_messages(&workspace_id, &chat_id, offset, limit)
+        .await
+    })
+  }
+
+  fn get_related_message(
+    &self,
+    workspace_id: &str,
+    chat_id: &str,
+    message_id: i64,
+  ) -> FutureResult<RepeatedRelatedQuestion, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let chat_id = chat_id.to_string();
+    let server = self.get_server();
+    FutureResult::new(async move {
+      server?
+        .chat_service()
+        .get_related_message(&workspace_id, &chat_id, message_id)
+        .await
+    })
+  }
+
+  fn generate_answer(
+    &self,
+    workspace_id: &str,
+    chat_id: &str,
+    question_message_id: i64,
+  ) -> FutureResult<ChatMessage, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let chat_id = chat_id.to_string();
+    let server = self.get_server();
+    FutureResult::new(async move {
+      server?
+        .chat_service()
+        .generate_answer(&workspace_id, &chat_id, question_message_id)
+        .await
+    })
   }
 }

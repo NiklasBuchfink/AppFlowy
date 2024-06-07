@@ -16,35 +16,28 @@ class MobileFavoritePageFolder extends StatelessWidget {
   const MobileFavoritePageFolder({
     super.key,
     required this.userProfile,
-    required this.workspaceId,
   });
 
   final UserProfilePB userProfile;
-  final String workspaceId;
 
   @override
   Widget build(BuildContext context) {
+    final workspaceId =
+        context.read<UserWorkspaceBloc>().state.currentWorkspace?.workspaceId ??
+            '';
     return MultiBlocProvider(
       providers: [
         BlocProvider(
           create: (_) => SidebarSectionsBloc()
-            ..add(
-              SidebarSectionsEvent.initial(
-                userProfile,
-                workspaceId,
-              ),
-            ),
+            ..add(SidebarSectionsEvent.initial(userProfile, workspaceId)),
         ),
         BlocProvider(
           create: (_) => FavoriteBloc()..add(const FavoriteEvent.initial()),
         ),
       ],
       child: BlocListener<UserWorkspaceBloc, UserWorkspaceState>(
-        listener: (context, state) {
-          context.read<FavoriteBloc>().add(
-                const FavoriteEvent.initial(),
-              );
-        },
+        listener: (context, state) =>
+            context.read<FavoriteBloc>().add(const FavoriteEvent.initial()),
         child: MultiBlocListener(
           listeners: [
             BlocListener<SidebarSectionsBloc, SidebarSectionsState>(
@@ -74,7 +67,8 @@ class MobileFavoritePageFolder extends StatelessWidget {
                           MobileFavoriteFolder(
                             showHeader: false,
                             forceExpanded: true,
-                            views: favoriteState.views,
+                            views:
+                                favoriteState.views.map((e) => e.item).toList(),
                           ),
                           const VSpace(100.0),
                         ],

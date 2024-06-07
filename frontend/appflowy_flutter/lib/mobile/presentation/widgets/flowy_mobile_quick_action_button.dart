@@ -25,30 +25,26 @@ class MobileQuickActionButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: InkWell(
-        onTap: () {
-          if (enable) {
-            onTap();
-          }
-        },
+        onTap: enable ? onTap : null,
         borderRadius: BorderRadius.circular(12),
         overlayColor:
-            enable ? null : const MaterialStatePropertyAll(Colors.transparent),
+            enable ? null : const WidgetStatePropertyAll(Colors.transparent),
         splashColor: Colors.transparent,
         child: Container(
-          height: 44,
+          height: 52,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
               FlowySvg(
                 icon,
-                size: const Size.square(20),
+                size: const Size.square(18),
                 color: enable ? iconColor : Theme.of(context).disabledColor,
               ),
               const HSpace(12),
               Expanded(
-                child: FlowyText(
+                child: FlowyText.regular(
                   text,
-                  fontSize: 15,
+                  fontSize: 16,
                   color: enable ? textColor : Theme.of(context).disabledColor,
                 ),
               ),

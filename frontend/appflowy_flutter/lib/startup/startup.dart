@@ -119,7 +119,7 @@ class FlowyRunner {
         // localization
         const InitLocalizationTask(),
         // init the app window
-        const InitAppWindowTask(),
+        InitAppWindowTask(),
         // Init Rust SDK
         InitRustSDKTask(customApplicationPath: applicationDataDirectory),
         // Load Plugins, like document, grid ...
@@ -136,6 +136,7 @@ class FlowyRunner {
           if (isAppFlowyCloudEnabled) InitAppFlowyCloudTask(),
           const InitAppWidgetTask(),
           const InitPlatformServiceTask(),
+          const RecentServiceTask(),
         ],
       ],
     );

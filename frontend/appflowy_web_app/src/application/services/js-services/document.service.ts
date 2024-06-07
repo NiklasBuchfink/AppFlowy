@@ -1,17 +1,47 @@
+import { CollabOrigin, CollabType, YDoc } from '@/application/collab.type';
+import { getCollab } from '@/application/services/js-services/cache';
+import { StrategyType } from '@/application/services/js-services/cache/types';
+import { fetchCollab } from '@/application/services/js-services/fetch';
+import { getCurrentWorkspace } from 'src/application/services/js-services/session';
 import { DocumentService } from '@/application/services/services.type';
-import { HttpClient } from '@/application/services/js-services/http/client';
-import { CollabType } from '@/application/services/js-services/http/http.type';
 
 export class JSDocumentService implements DocumentService {
-  constructor(private httpClient: HttpClient) {}
+  private loaded: Set<string> = new Set();
 
-  async openDocument(docID: string): Promise<void> {
-    const workspaceId = '9eebea03-3ed5-4298-86b2-a7f77856d48b';
-    const docId = '26d5c8c1-1c66-459c-bc6c-f4da1a663348';
-    const data = await this.httpClient.getObject(workspaceId, docId, CollabType.Document);
+  constructor() {
+    //
+  }
 
-    console.log(docID, data);
+  async openDocument(docId: string): Promise<YDoc> {
+    const workspace = await getCurrentWorkspace();
 
-    return;
+    if (!workspace) {
+      throw new Error('Workspace database not found');
+    }
+
+    const isLoaded = this.loaded.has(docId);
+
+    const doc = await getCollab(
+      () => {
+        return fetchCollab(workspace.id, docId, CollabType.Document);
+      },
+      {
+        collabId: docId,
+        collabType: CollabType.Document,
+      },
+      isLoaded ? StrategyType.CACHE_FIRST : StrategyType.CACHE_AND_NETWORK
+    );
+
+    if (!isLoaded) this.loaded.add(docId);
+    const handleUpdate = (update: Uint8Array, origin: CollabOrigin) => {
+      if (origin === CollabOrigin.LocalSync) {
+        // Send the update to the server
+        console.log('update', update);
+      }
+    };
+
+    doc.on('update', handleUpdate);
+
+    return doc;
   }
 }

@@ -1,6 +1,5 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/mobile/presentation/database/card/card.dart';
-import 'package:appflowy/plugins/database/application/cell/cell_controller.dart';
 import 'package:appflowy/plugins/database/application/field/field_controller.dart';
 import 'package:appflowy/plugins/database/application/row/row_cache.dart';
 import 'package:appflowy/plugins/database/grid/presentation/widgets/row/action.dart';
@@ -29,10 +28,11 @@ class RowCard extends StatefulWidget {
     required this.isEditing,
     required this.rowCache,
     required this.cellBuilder,
-    required this.openCard,
+    required this.onTap,
     required this.onStartEditing,
     required this.onEndEditing,
     required this.styleConfiguration,
+    this.onShiftTap,
     this.groupingFieldId,
     this.groupId,
   });
@@ -50,7 +50,9 @@ class RowCard extends StatefulWidget {
   final CardCellBuilder cellBuilder;
 
   /// Called when the user taps on the card.
-  final void Function(BuildContext) openCard;
+  final void Function(BuildContext context) onTap;
+
+  final void Function(BuildContext context)? onShiftTap;
 
   /// Called when the user starts editing the card.
   final VoidCallback onStartEditing;
@@ -67,12 +69,10 @@ class RowCard extends StatefulWidget {
 class _RowCardState extends State<RowCard> {
   final popoverController = PopoverController();
   late final CardBloc _cardBloc;
-  late final EditableRowNotifier rowNotifier;
 
   @override
   void initState() {
     super.initState();
-    rowNotifier = EditableRowNotifier(isEditing: widget.isEditing);
     _cardBloc = CardBloc(
       fieldController: widget.fieldController,
       viewId: widget.viewId,
@@ -81,22 +81,18 @@ class _RowCardState extends State<RowCard> {
       rowMeta: widget.rowMeta,
       rowCache: widget.rowCache,
     )..add(const CardEvent.initial());
+  }
 
-    rowNotifier.isEditing.addListener(() {
-      if (!mounted) return;
-      _cardBloc.add(CardEvent.setIsEditing(rowNotifier.isEditing.value));
-
-      if (rowNotifier.isEditing.value) {
-        widget.onStartEditing();
-      } else {
-        widget.onEndEditing();
-      }
-    });
+  @override
+  void didUpdateWidget(covariant oldWidget) {
+    if (widget.isEditing != _cardBloc.state.isEditing) {
+      _cardBloc.add(CardEvent.setIsEditing(widget.isEditing));
+    }
+    super.didUpdateWidget(oldWidget);
   }
 
   @override
   void dispose() {
-    rowNotifier.dispose();
     _cardBloc.close();
     super.dispose();
   }
@@ -105,7 +101,14 @@ class _RowCardState extends State<RowCard> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _cardBloc,
-      child: BlocBuilder<CardBloc, CardState>(
+      child: BlocConsumer<CardBloc, CardState>(
+        listenWhen: (previous, current) =>
+            previous.isEditing != current.isEditing,
+        listener: (context, state) {
+          if (!state.isEditing) {
+            widget.onEndEditing();
+          }
+        },
         builder: (context, state) =>
             PlatformExtension.isMobile ? _mobile(state) : _desktop(state),
       ),
@@ -114,7 +117,7 @@ class _RowCardState extends State<RowCard> {
 
   Widget _mobile(CardState state) {
     return GestureDetector(
-      onTap: () => widget.openCard(context),
+      onTap: () => widget.onTap(context),
       behavior: HitTestBehavior.opaque,
       child: MobileCardContent(
         rowMeta: state.rowMeta,
@@ -127,9 +130,9 @@ class _RowCardState extends State<RowCard> {
 
   Widget _desktop(CardState state) {
     final accessories = widget.styleConfiguration.showAccessory
-        ? <CardAccessory>[
-            EditCardAccessory(rowNotifier: rowNotifier),
-            const MoreCardOptionsAccessory(),
+        ? const <CardAccessory>[
+            EditCardAccessory(),
+            MoreCardOptionsAccessory(),
           ]
         : null;
     return AppFlowyPopover(
@@ -148,10 +151,10 @@ class _RowCardState extends State<RowCard> {
         buildAccessoryWhen: () => state.isEditing == false,
         accessories: accessories ?? [],
         openAccessory: _handleOpenAccessory,
-        openCard: widget.openCard,
+        onTap: widget.onTap,
+        onShiftTap: widget.onShiftTap,
         child: _CardContent(
           rowMeta: state.rowMeta,
-          rowNotifier: rowNotifier,
           cellBuilder: widget.cellBuilder,
           styleConfiguration: widget.styleConfiguration,
           cells: state.cells,
@@ -163,6 +166,7 @@ class _RowCardState extends State<RowCard> {
   void _handleOpenAccessory(AccessoryType newAccessoryType) {
     switch (newAccessoryType) {
       case AccessoryType.edit:
+        widget.onStartEditing();
         break;
       case AccessoryType.more:
         popoverController.show();
@@ -174,16 +178,14 @@ class _RowCardState extends State<RowCard> {
 class _CardContent extends StatelessWidget {
   const _CardContent({
     required this.rowMeta,
-    required this.rowNotifier,
     required this.cellBuilder,
     required this.cells,
     required this.styleConfiguration,
   });
 
   final RowMetaPB rowMeta;
-  final EditableRowNotifier rowNotifier;
   final CardCellBuilder cellBuilder;
-  final List<CellContext> cells;
+  final List<CellMeta> cells;
   final RowCardStyleConfiguration styleConfiguration;
 
   @override
@@ -199,7 +201,7 @@ class _CardContent extends StatelessWidget {
         ? child
         : FlowyHover(
             style: styleConfiguration.hoverStyle,
-            buildWhenOnHover: () => !rowNotifier.isEditing.value,
+            buildWhenOnHover: () => !context.read<CardBloc>().state.isEditing,
             child: child,
           );
   }
@@ -207,28 +209,46 @@ class _CardContent extends StatelessWidget {
   List<Widget> _makeCells(
     BuildContext context,
     RowMetaPB rowMeta,
-    List<CellContext> cells,
+    List<CellMeta> cells,
   ) {
-    // Remove all the cell listeners.
-    rowNotifier.unbind();
-
-    return cells.mapIndexed((int index, CellContext cellContext) {
+    return cells.mapIndexed((int index, CellMeta cellMeta) {
       EditableCardNotifier? cellNotifier;
 
       if (index == 0) {
-        cellNotifier =
-            EditableCardNotifier(isEditing: rowNotifier.isEditing.value);
-        rowNotifier.bindCell(cellContext, cellNotifier);
+        final bloc = context.read<CardBloc>();
+        cellNotifier = EditableCardNotifier(isEditing: bloc.state.isEditing);
+        cellNotifier.isCellEditing.addListener(() {
+          final isEditing = cellNotifier!.isCellEditing.value;
+          bloc.add(CardEvent.setIsEditing(isEditing));
+        });
       }
 
       return cellBuilder.build(
-        cellContext: cellContext,
+        cellContext: cellMeta.cellContext(),
         cellNotifier: cellNotifier,
         styleMap: styleConfiguration.cellStyleMap,
         hasNotes: !rowMeta.isDocumentEmpty,
       );
     }).toList();
   }
+}
+
+class EditCardAccessory extends StatelessWidget with CardAccessory {
+  const EditCardAccessory({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(3.0),
+      child: FlowySvg(
+        FlowySvgs.edit_s,
+        color: Theme.of(context).hintColor,
+      ),
+    );
+  }
+
+  @override
+  AccessoryType get type => AccessoryType.edit;
 }
 
 class MoreCardOptionsAccessory extends StatelessWidget with CardAccessory {
@@ -247,29 +267,6 @@ class MoreCardOptionsAccessory extends StatelessWidget with CardAccessory {
 
   @override
   AccessoryType get type => AccessoryType.more;
-}
-
-class EditCardAccessory extends StatelessWidget with CardAccessory {
-  const EditCardAccessory({super.key, required this.rowNotifier});
-
-  final EditableRowNotifier rowNotifier;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(3.0),
-      child: FlowySvg(
-        FlowySvgs.edit_s,
-        color: Theme.of(context).hintColor,
-      ),
-    );
-  }
-
-  @override
-  void onTap(BuildContext context) => rowNotifier.becomeFirstResponder();
-
-  @override
-  AccessoryType get type => AccessoryType.edit;
 }
 
 class RowCardStyleConfiguration {

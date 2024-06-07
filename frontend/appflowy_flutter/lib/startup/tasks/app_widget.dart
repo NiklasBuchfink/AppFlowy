@@ -5,15 +5,18 @@ import 'package:flutter/services.dart';
 
 import 'package:appflowy/mobile/application/mobile_router.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
+import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
 import 'package:appflowy/user/application/user_settings_service.dart';
 import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
 import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
+import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/notification/notification_service.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/notifications/notification_settings_cubit.dart';
 import 'package:appflowy/workspace/application/sidebar/rename_view/rename_view_bloc.dart';
+import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/command_palette/command_palette.dart';
 import 'package:appflowy_backend/log.dart';
@@ -126,18 +129,27 @@ class ApplicationWidget extends StatefulWidget {
 class _ApplicationWidgetState extends State<ApplicationWidget> {
   late final GoRouter routerConfig;
 
+  final _commandPaletteNotifier = ValueNotifier<bool>(false);
+
   @override
   void initState() {
     super.initState();
-
-    // avoid rebuild routerConfig when the appTheme is changed.
+    // Avoid rebuild routerConfig when the appTheme is changed.
     routerConfig = generateRouter(widget.child);
+  }
+
+  @override
+  void dispose() {
+    _commandPaletteNotifier.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        if (FeatureFlag.search.isOn)
+          BlocProvider<CommandPaletteBloc>(create: (_) => CommandPaletteBloc()),
         BlocProvider<AppearanceSettingsCubit>(
           create: (_) => AppearanceSettingsCubit(
             widget.appearanceSetting,
@@ -152,10 +164,7 @@ class _ApplicationWidgetState extends State<ApplicationWidget> {
           create: (_) => DocumentAppearanceCubit()..fetch(),
         ),
         BlocProvider.value(value: getIt<RenameViewBloc>()),
-        BlocProvider.value(
-          value: getIt<ActionNavigationBloc>()
-            ..add(const ActionNavigationEvent.initialize()),
-        ),
+        BlocProvider.value(value: getIt<ActionNavigationBloc>()),
         BlocProvider.value(
           value: getIt<ReminderBloc>()..add(const ReminderEvent.started()),
         ),
@@ -168,8 +177,12 @@ class _ApplicationWidgetState extends State<ApplicationWidget> {
             if (action?.type == ActionType.openView &&
                 PlatformExtension.isDesktop) {
               final view = action!.arguments?[ActionArgumentKeys.view];
+              final nodePath = action.arguments?[ActionArgumentKeys.nodePath];
               if (view != null) {
-                AppGlobals.rootNavKey.currentContext?.pushView(view);
+                getIt<TabsBloc>().openPlugin(
+                  view.plugin(),
+                  arguments: {PluginArgumentKeys.selection: nodePath},
+                );
               }
             } else if (action?.type == ActionType.openRow &&
                 PlatformExtension.isMobile) {
@@ -196,10 +209,12 @@ class _ApplicationWidgetState extends State<ApplicationWidget> {
                 ),
                 child: overlayManagerBuilder(
                   context,
-                  CommandPalette(
-                    toggleNotifier: ValueNotifier<bool>(false),
-                    child: child,
-                  ),
+                  !PlatformExtension.isMobile && FeatureFlag.search.isOn
+                      ? CommandPalette(
+                          notifier: _commandPaletteNotifier,
+                          child: child,
+                        )
+                      : child,
                 ),
               ),
               debugShowCheckedModeBanner: false,
@@ -244,9 +259,9 @@ class _ApplicationWidgetState extends State<ApplicationWidget> {
 }
 
 class AppGlobals {
-  // static GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey();
   static GlobalKey<NavigatorState> rootNavKey = GlobalKey();
   static NavigatorState get nav => rootNavKey.currentState!;
+  static BuildContext get context => rootNavKey.currentContext!;
 }
 
 class ApplicationBlocObserver extends BlocObserver {

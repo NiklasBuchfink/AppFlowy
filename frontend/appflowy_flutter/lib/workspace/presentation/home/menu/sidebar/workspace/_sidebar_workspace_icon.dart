@@ -2,24 +2,32 @@ import 'dart:math';
 
 import 'package:appflowy/plugins/base/icon/icon_picker.dart';
 import 'package:appflowy/util/color_generator/color_generator.dart';
-import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_popover/appflowy_popover.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 class WorkspaceIcon extends StatefulWidget {
   const WorkspaceIcon({
     super.key,
+    required this.workspace,
     required this.enableEdit,
     required this.iconSize,
-    required this.workspace,
+    required this.fontSize,
+    required this.onSelected,
+    this.borderRadius = 4,
+    this.emojiSize,
+    this.alignment,
   });
 
   final UserWorkspacePB workspace;
   final double iconSize;
   final bool enableEdit;
+  final double fontSize;
+  final double? emojiSize;
+  final void Function(EmojiPickerResult) onSelected;
+  final double borderRadius;
+  final Alignment? alignment;
 
   @override
   State<WorkspaceIcon> createState() => _WorkspaceIconState();
@@ -33,48 +41,46 @@ class _WorkspaceIconState extends State<WorkspaceIcon> {
     Widget child = widget.workspace.icon.isNotEmpty
         ? Container(
             width: widget.iconSize,
-            alignment: Alignment.center,
-            child: FlowyText(
+            alignment: widget.alignment ?? Alignment.center,
+            child: FlowyText.emoji(
               widget.workspace.icon,
-              fontSize: widget.iconSize,
+              fontSize: widget.emojiSize ?? widget.iconSize,
             ),
           )
         : Container(
             alignment: Alignment.center,
             width: widget.iconSize,
-            height: max(widget.iconSize, 26),
+            height: min(widget.iconSize, 24),
             decoration: BoxDecoration(
               color: ColorGenerator(widget.workspace.name).toColor(),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+              border: Border.all(
+                color: const Color(0xa1717171),
+                width: 0.5,
+              ),
             ),
-            child: FlowyText(
+            child: FlowyText.semibold(
               widget.workspace.name.isEmpty
                   ? ''
                   : widget.workspace.name.substring(0, 1),
-              fontSize: 16,
+              fontSize: widget.fontSize,
               color: Colors.black,
             ),
           );
+
     if (widget.enableEdit) {
       child = AppFlowyPopover(
         offset: const Offset(0, 8),
         controller: controller,
         direction: PopoverDirection.bottomWithLeftAligned,
-        constraints: BoxConstraints.loose(const Size(360, 380)),
+        constraints: BoxConstraints.loose(const Size(364, 356)),
         clickHandler: PopoverClickHandler.gestureDetector,
-        popupBuilder: (BuildContext popoverContext) {
-          return FlowyIconPicker(
-            onSelected: (result) {
-              context.read<UserWorkspaceBloc>().add(
-                    UserWorkspaceEvent.updateWorkspaceIcon(
-                      widget.workspace.workspaceId,
-                      result.emoji,
-                    ),
-                  );
-              controller.close();
-            },
-          );
-        },
+        popupBuilder: (_) => FlowyIconPicker(
+          onSelected: (result) {
+            widget.onSelected(result);
+            controller.close();
+          },
+        ),
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: child,

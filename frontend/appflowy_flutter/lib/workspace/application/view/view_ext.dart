@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
+import 'package:appflowy/plugins/ai_chat/chat.dart';
 import 'package:appflowy/plugins/database/board/presentation/board_page.dart';
 import 'package:appflowy/plugins/database/calendar/presentation/calendar_page.dart';
 import 'package:appflowy/plugins/database/grid/presentation/grid_page.dart';
@@ -10,23 +14,38 @@ import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 
-enum FlowyPlugin {
-  editor,
-  kanban,
-}
-
 class PluginArgumentKeys {
   static String selection = "selection";
   static String rowId = "row_id";
 }
 
+class ViewExtKeys {
+  // used for customizing the font family.
+  static String fontKey = 'font';
+
+  // used for customizing the font layout.
+  static String fontLayoutKey = 'font_layout';
+
+  // used for customizing the line height layout.
+  static String lineHeightLayoutKey = 'line_height_layout';
+
+  // cover keys
+  static String coverKey = 'cover';
+  static String coverTypeKey = 'type';
+  static String coverValueKey = 'value';
+
+  // is pinned
+  static String isPinnedKey = 'is_pinned';
+}
+
 extension ViewExtension on ViewPB {
   Widget defaultIcon() => FlowySvg(
         switch (layout) {
-          ViewLayoutPB.Board => FlowySvgs.board_s,
-          ViewLayoutPB.Calendar => FlowySvgs.date_s,
-          ViewLayoutPB.Grid => FlowySvgs.grid_s,
-          ViewLayoutPB.Document => FlowySvgs.document_s,
+          ViewLayoutPB.Board => FlowySvgs.icon_board_s,
+          ViewLayoutPB.Calendar => FlowySvgs.icon_calendar_s,
+          ViewLayoutPB.Grid => FlowySvgs.icon_grid_s,
+          ViewLayoutPB.Document => FlowySvgs.icon_document_s,
+          ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
           _ => FlowySvgs.document_s,
         },
       );
@@ -34,8 +53,9 @@ extension ViewExtension on ViewPB {
   PluginType get pluginType => switch (layout) {
         ViewLayoutPB.Board => PluginType.board,
         ViewLayoutPB.Calendar => PluginType.calendar,
-        ViewLayoutPB.Document => PluginType.editor,
+        ViewLayoutPB.Document => PluginType.document,
         ViewLayoutPB.Grid => PluginType.grid,
+        ViewLayoutPB.Chat => PluginType.chat,
         _ => throw UnimplementedError(),
       };
 
@@ -62,6 +82,8 @@ extension ViewExtension on ViewPB {
           pluginType: pluginType,
           initialSelection: initialSelection,
         );
+      case ViewLayoutPB.Chat:
+        return AIChatPagePlugin(view: this);
     }
     throw UnimplementedError;
   }
@@ -81,6 +103,61 @@ extension ViewExtension on ViewPB {
       };
 
   FlowySvgData get iconData => layout.icon;
+
+  bool get isPinned {
+    try {
+      final ext = jsonDecode(extra);
+      final isPinned = ext[ViewExtKeys.isPinnedKey] ?? false;
+      return isPinned;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  PageStyleCover? get cover {
+    if (layout != ViewLayoutPB.Document) {
+      return null;
+    }
+    try {
+      final ext = jsonDecode(extra);
+      final cover = ext[ViewExtKeys.coverKey] ?? {};
+      final coverType = cover[ViewExtKeys.coverTypeKey] ??
+          PageStyleCoverImageType.none.toString();
+      final coverValue = cover[ViewExtKeys.coverValueKey] ?? '';
+      return PageStyleCover(
+        type: PageStyleCoverImageType.fromString(coverType),
+        value: coverValue,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  PageStyleLineHeightLayout get lineHeightLayout {
+    if (layout != ViewLayoutPB.Document) {
+      return PageStyleLineHeightLayout.normal;
+    }
+    try {
+      final ext = jsonDecode(extra);
+      final lineHeight = ext[ViewExtKeys.lineHeightLayoutKey];
+      return PageStyleLineHeightLayout.fromString(lineHeight);
+    } catch (e) {
+      return PageStyleLineHeightLayout.normal;
+    }
+  }
+
+  PageStyleFontLayout get fontLayout {
+    if (layout != ViewLayoutPB.Document) {
+      return PageStyleFontLayout.normal;
+    }
+    try {
+      final ext = jsonDecode(extra);
+      final fontLayout = ext[ViewExtKeys.fontLayoutKey];
+      return PageStyleFontLayout.fromString(fontLayout);
+    } catch (e) {
+      return PageStyleFontLayout.normal;
+    }
+  }
 }
 
 extension ViewLayoutExtension on ViewLayoutPB {
@@ -89,6 +166,17 @@ extension ViewLayoutExtension on ViewLayoutPB {
         ViewLayoutPB.Board => FlowySvgs.board_s,
         ViewLayoutPB.Calendar => FlowySvgs.date_s,
         ViewLayoutPB.Document => FlowySvgs.document_s,
+        ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
+        _ => throw Exception('Unknown layout type'),
+      };
+
+  bool get isDocumentView => switch (this) {
+        ViewLayoutPB.Document => true,
+        ViewLayoutPB.Chat ||
+        ViewLayoutPB.Grid ||
+        ViewLayoutPB.Board ||
+        ViewLayoutPB.Calendar =>
+          false,
         _ => throw Exception('Unknown layout type'),
       };
 
@@ -97,7 +185,7 @@ extension ViewLayoutExtension on ViewLayoutPB {
         ViewLayoutPB.Board ||
         ViewLayoutPB.Calendar =>
           true,
-        ViewLayoutPB.Document => false,
+        ViewLayoutPB.Document || ViewLayoutPB.Chat => false,
         _ => throw Exception('Unknown layout type'),
       };
 }
