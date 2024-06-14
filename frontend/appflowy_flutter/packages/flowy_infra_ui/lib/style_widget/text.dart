@@ -160,11 +160,13 @@ class FlowyText extends StatelessWidget {
         );
 
     if (selectable) {
-      child = SelectableText(
-        text,
-        maxLines: maxLines,
-        textAlign: textAlign,
-        style: textStyle,
+      child = IntrinsicHeight(
+        child: SelectableText(
+          text,
+          maxLines: maxLines,
+          textAlign: textAlign,
+          style: textStyle,
+        ),
       );
     } else {
       child = Text(
@@ -178,7 +180,7 @@ class FlowyText extends StatelessWidget {
                 textStyle,
                 forceStrutHeight: true,
                 leadingDistribution: TextLeadingDistribution.even,
-                height: 1.1,
+                height: lineHeight ?? 1.1,
               )
             : null,
       );

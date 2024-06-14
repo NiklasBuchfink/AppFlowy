@@ -10,15 +10,16 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.da
 import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/util/string_extension.dart';
-import 'package:appflowy/workspace/application/favorite/favorite_bloc.dart';
-import 'package:appflowy/workspace/application/recent/recent_views_bloc.dart';
+import 'package:appflowy/util/theme_extension.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
+import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
+import 'package:appflowy/workspace/application/settings/date_time/time_format_ext.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:fixnum/fixnum.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,6 +27,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:string_validator/string_validator.dart';
+import 'package:time/time.dart';
 
 enum MobileViewCardType {
   recent,
@@ -78,7 +80,6 @@ class MobileViewCard extends StatelessWidget {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapUp: (_) => context.pushView(view),
-              onLongPressUp: () => _showActionSheet(context),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -157,6 +158,7 @@ class MobileViewCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: _ViewCover(
+        layout: view.layout,
         coverTypeV1: state.coverTypeV1,
         coverTypeV2: state.coverTypeV2,
         value: state.coverValue,
@@ -189,6 +191,7 @@ class MobileViewCard extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                   fontSize: 16.0,
                   fontWeight: FontWeight.w600,
+                  height: 1.3,
                 ),
           ),
         ],
@@ -207,40 +210,45 @@ class MobileViewCard extends StatelessWidget {
   }
 
   Widget _buildLastViewed(BuildContext context) {
+    final textColor = Theme.of(context).isLightMode
+        ? const Color(0xFF171717)
+        : Colors.white.withOpacity(0.45);
     if (timestamp == null) {
       return const SizedBox.shrink();
     }
     final date = _formatTimestamp(
+      context,
       timestamp!.toInt() * 1000,
     );
     return FlowyText.regular(
       date,
-      fontSize: 12.0,
-      color: Theme.of(context).hintColor,
+      fontSize: 13.0,
+      color: textColor,
     );
   }
 
-  String _formatTimestamp(int timestamp) {
+  String _formatTimestamp(BuildContext context, int timestamp) {
     final now = DateTime.now();
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final difference = now.difference(dateTime);
     final String date;
 
+    final dateFormate =
+        context.read<AppearanceSettingsCubit>().state.dateFormat;
+    final timeFormate =
+        context.read<AppearanceSettingsCubit>().state.timeFormat;
+
     if (difference.inMinutes < 1) {
       date = LocaleKeys.sideBar_justNow.tr();
-    } else if (difference.inHours < 1) {
+    } else if (difference.inHours < 1 && dateTime.isToday) {
       // Less than 1 hour
       date = LocaleKeys.sideBar_minutesAgo
           .tr(namedArgs: {'count': difference.inMinutes.toString()});
-    } else if (difference.inHours >= 1 && difference.inHours < 24) {
-      // Between 1 hour and 24 hours
-      date = DateFormat('h:mm a').format(dateTime);
-    } else if (difference.inDays >= 1 && dateTime.year == now.year) {
-      // More than 24 hours but within the current year
-      date = DateFormat('M/d, h:mm a').format(dateTime);
+    } else if (difference.inHours >= 1 && dateTime.isToday) {
+      // in same day
+      date = timeFormate.formatTime(dateTime);
     } else {
-      // Other cases (previous years)
-      date = DateFormat('M/d/yyyy, h:mm a').format(dateTime);
+      date = dateFormate.formatDate(dateTime, false);
     }
 
     if (difference.inHours >= 1) {
@@ -249,77 +257,24 @@ class MobileViewCard extends StatelessWidget {
 
     return date;
   }
-
-  Future<void> _showActionSheet(BuildContext context) async {
-    final viewBloc = context.read<ViewBloc>();
-    final favoriteBloc = context.read<FavoriteBloc>();
-    final recentViewsBloc = context.read<RecentViewsBloc?>();
-    await showMobileBottomSheet(
-      context,
-      showDragHandle: true,
-      showDivider: false,
-      backgroundColor: AFThemeExtension.of(context).background,
-      useRootNavigator: true,
-      builder: (context) {
-        return MultiBlocProvider(
-          providers: [
-            BlocProvider.value(value: viewBloc),
-            BlocProvider.value(value: favoriteBloc),
-            if (recentViewsBloc != null)
-              BlocProvider.value(value: recentViewsBloc),
-          ],
-          child: BlocBuilder<ViewBloc, ViewState>(
-            builder: (context, state) {
-              return MobileViewItemBottomSheet(
-                view: viewBloc.state.view,
-                actions: _buildActions(state.view),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  List<MobileViewItemBottomSheetBodyAction> _buildActions(ViewPB view) {
-    switch (type) {
-      case MobileViewCardType.recent:
-        return [
-          view.isFavorite
-              ? MobileViewItemBottomSheetBodyAction.removeFromFavorites
-              : MobileViewItemBottomSheetBodyAction.addToFavorites,
-          MobileViewItemBottomSheetBodyAction.divider,
-          if (view.layout != ViewLayoutPB.Chat)
-            MobileViewItemBottomSheetBodyAction.duplicate,
-          MobileViewItemBottomSheetBodyAction.divider,
-          MobileViewItemBottomSheetBodyAction.removeFromRecent,
-        ];
-      case MobileViewCardType.favorite:
-        return [
-          MobileViewItemBottomSheetBodyAction.removeFromFavorites,
-          MobileViewItemBottomSheetBodyAction.divider,
-          MobileViewItemBottomSheetBodyAction.duplicate,
-        ];
-    }
-  }
 }
 
 class _ViewCover extends StatelessWidget {
   const _ViewCover({
+    required this.layout,
     required this.coverTypeV1,
     this.coverTypeV2,
     this.value,
   });
 
+  final ViewLayoutPB layout;
   final CoverType coverTypeV1;
   final PageStyleCoverImageType? coverTypeV2;
   final String? value;
 
   @override
   Widget build(BuildContext context) {
-    final placeholder = Container(
-      color: const Color(0xFFE1FBFF),
-    );
+    final placeholder = _buildPlaceholder(context);
     final value = this.value;
     if (value == null) {
       return placeholder;
@@ -328,6 +283,45 @@ class _ViewCover extends StatelessWidget {
       return _buildCoverV2(context, value, placeholder);
     }
     return _buildCoverV1(context, value, placeholder);
+  }
+
+  Widget _buildPlaceholder(BuildContext context) {
+    final isLightMode = Theme.of(context).isLightMode;
+    final (svg, color) = switch (layout) {
+      ViewLayoutPB.Document => (
+          FlowySvgs.m_document_thumbnail_m,
+          isLightMode ? const Color(0xCCEDFBFF) : const Color(0x33658B90)
+        ),
+      ViewLayoutPB.Grid => (
+          FlowySvgs.m_grid_thumbnail_m,
+          isLightMode ? const Color(0xFFF5F4FF) : const Color(0x338B80AD)
+        ),
+      ViewLayoutPB.Board => (
+          FlowySvgs.m_board_thumbnail_m,
+          isLightMode ? const Color(0x7FE0FDD9) : const Color(0x3372936B),
+        ),
+      ViewLayoutPB.Calendar => (
+          FlowySvgs.m_calendar_thumbnail_m,
+          isLightMode ? const Color(0xFFFFF7F0) : const Color(0x33A68B77)
+        ),
+      ViewLayoutPB.Chat => (
+          FlowySvgs.m_chat_thumbnail_m,
+          isLightMode ? const Color(0x66FFE6FD) : const Color(0x33987195)
+        ),
+      _ => (
+          FlowySvgs.m_document_thumbnail_m,
+          isLightMode ? Colors.black : Colors.white
+        )
+    };
+    return ColoredBox(
+      color: color,
+      child: Center(
+        child: FlowySvg(
+          svg,
+          blendMode: null,
+        ),
+      ),
+    );
   }
 
   Widget _buildCoverV2(BuildContext context, String value, Widget placeholder) {

@@ -9,8 +9,7 @@ import 'package:appflowy/workspace/application/menu/sidebar_sections_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra_ui/flowy_infra_ui.dart';
-import 'package:flowy_infra_ui/style_widget/icon_button.dart';
+import 'package:flowy_infra_ui/style_widget/hover.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -71,13 +70,14 @@ class SidebarTopMenu extends StatelessWidget {
       children: [
         TextSpan(
           text: '${LocaleKeys.sideBar_closeSidebar.tr()}\n',
-          style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: color),
+          style:
+              Theme.of(context).tooltipTheme.textStyle!.copyWith(color: color),
         ),
         TextSpan(
           text: Platform.isMacOS ? '⌘+.' : 'Ctrl+\\',
           style: Theme.of(context)
-              .textTheme
-              .bodyMedium!
+              .tooltipTheme
+              .textStyle!
               .copyWith(color: Theme.of(context).hintColor),
         ),
       ],
@@ -92,14 +92,16 @@ class SidebarTopMenu extends StatelessWidget {
           child: FlowyTooltip(
             richMessage: textSpan,
             child: Listener(
+              behavior: HitTestBehavior.translucent,
               onPointerDown: (_) => context
                   .read<HomeSettingBloc>()
                   .add(const HomeSettingEvent.collapseMenu()),
-              child: FlowyIconButton(
-                width: 24,
-                onPressed: () {},
-                iconPadding: const EdgeInsets.all(4),
-                icon: const FlowySvg(FlowySvgs.hide_menu_s),
+              child: FlowyHover(
+                child: Container(
+                  width: 24,
+                  padding: const EdgeInsets.all(4),
+                  child: const FlowySvg(FlowySvgs.hide_menu_s),
+                ),
               ),
             ),
           ),

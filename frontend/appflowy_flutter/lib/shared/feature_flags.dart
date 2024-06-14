@@ -32,6 +32,9 @@ enum FeatureFlag {
   // used for the search feature
   search,
 
+  // used for controlling whether to show plan+billing options in settings
+  planBilling,
+
   // used for ignore the conflicted feature flag
   unknown;
 
@@ -85,6 +88,7 @@ enum FeatureFlag {
 
   bool get isOn {
     if ([
+      FeatureFlag.planBilling,
       // release this feature in version 0.5.9
       FeatureFlag.search,
       // release this feature in version 0.5.6
@@ -104,6 +108,7 @@ enum FeatureFlag {
     switch (this) {
       case FeatureFlag.collaborativeWorkspace:
       case FeatureFlag.membersSettings:
+      case FeatureFlag.planBilling:
       case FeatureFlag.unknown:
         return false;
       case FeatureFlag.search:
@@ -125,6 +130,8 @@ enum FeatureFlag {
         return 'if it\'s on, the collaborators will show in the database';
       case FeatureFlag.search:
         return 'if it\'s on, the command palette and search button will be available';
+      case FeatureFlag.planBilling:
+        return 'if it\'s on, plan and billing pages will be available in Settings';
       case FeatureFlag.unknown:
         return '';
     }

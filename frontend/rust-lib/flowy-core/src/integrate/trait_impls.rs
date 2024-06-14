@@ -1,3 +1,5 @@
+use client_api::entity::search_dto::SearchDocumentResponseItem;
+use flowy_search_pub::cloud::SearchCloudService;
 use flowy_storage::{ObjectIdentity, ObjectStorageService};
 use std::sync::Arc;
 
@@ -18,9 +20,11 @@ use collab_integrate::collab_builder::{
 };
 use flowy_chat_pub::cloud::{
   ChatCloudService, ChatMessage, ChatMessageStream, MessageCursor, RepeatedChatMessage,
+  StreamAnswer,
 };
 use flowy_database_pub::cloud::{
   CollabDocStateByOid, DatabaseCloudService, DatabaseSnapshot, SummaryRowContent,
+  TranslateRowContent, TranslateRowResponse,
 };
 use flowy_document::deps::DocumentData;
 use flowy_document_pub::cloud::{DocumentCloudService, DocumentSnapshot};
@@ -292,6 +296,23 @@ impl DatabaseCloudService for ServerProvider {
         .await
     })
   }
+
+  fn translate_database_row(
+    &self,
+    workspace_id: &str,
+    translate_row: TranslateRowContent,
+    language: &str,
+  ) -> FutureResult<TranslateRowResponse, Error> {
+    let workspace_id = workspace_id.to_string();
+    let server = self.get_server();
+    let language = language.to_string();
+    FutureResult::new(async move {
+      server?
+        .database_service()
+        .translate_database_row(&workspace_id, translate_row, &language)
+        .await
+    })
+  }
 }
 
 impl DocumentCloudService for ServerProvider {
@@ -476,6 +497,60 @@ impl ChatCloudService for ServerProvider {
       .await
   }
 
+  fn send_question(
+    &self,
+    workspace_id: &str,
+    chat_id: &str,
+    message: &str,
+    message_type: ChatMessageType,
+  ) -> FutureResult<ChatMessage, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let chat_id = chat_id.to_string();
+    let message = message.to_string();
+    let server = self.get_server();
+
+    FutureResult::new(async move {
+      server?
+        .chat_service()
+        .send_question(&workspace_id, &chat_id, &message, message_type)
+        .await
+    })
+  }
+
+  fn save_answer(
+    &self,
+    workspace_id: &str,
+    chat_id: &str,
+    message: &str,
+    question_id: i64,
+  ) -> FutureResult<ChatMessage, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let chat_id = chat_id.to_string();
+    let message = message.to_string();
+    let server = self.get_server();
+    FutureResult::new(async move {
+      server?
+        .chat_service()
+        .save_answer(&workspace_id, &chat_id, &message, question_id)
+        .await
+    })
+  }
+
+  async fn stream_answer(
+    &self,
+    workspace_id: &str,
+    chat_id: &str,
+    message_id: i64,
+  ) -> Result<StreamAnswer, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let chat_id = chat_id.to_string();
+    let server = self.get_server()?;
+    server
+      .chat_service()
+      .stream_answer(&workspace_id, &chat_id, message_id)
+      .await
+  }
+
   fn get_chat_messages(
     &self,
     workspace_id: &str,
@@ -526,5 +601,20 @@ impl ChatCloudService for ServerProvider {
         .generate_answer(&workspace_id, &chat_id, question_message_id)
         .await
     })
+  }
+}
+
+#[async_trait]
+impl SearchCloudService for ServerProvider {
+  async fn document_search(
+    &self,
+    workspace_id: &str,
+    query: String,
+  ) -> Result<Vec<SearchDocumentResponseItem>, FlowyError> {
+    let server = self.get_server()?;
+    match server.search_service() {
+      Some(search_service) => search_service.document_search(workspace_id, query).await,
+      None => Err(FlowyError::internal().with_context("SearchCloudService not found")),
+    }
   }
 }
