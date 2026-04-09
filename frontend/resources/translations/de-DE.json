@@ -36,6 +36,7 @@
     "loginButtonText": "Anmelden",
     "loginStartWithAnonymous": "Anonyme Sitzung starten",
     "continueAnonymousUser": "in anonymer Sitzung fortfahren",
+    "continueWithLocalModel": "Mit dem lokalen Modell fortfahren",
     "buttonText": "Anmelden",
     "signingInText": "Anmelden...",
     "forgotPassword": "Passwort vergessen?",
